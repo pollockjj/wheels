@@ -50,6 +50,8 @@ on:
 jobs:
   build-linux:
     runs-on: ubuntu-22.04
+    container:
+      image: nvidia/cuda:13.0.0-devel-ubuntu22.04
     env:
       BUILD_SOURCE_REF: ${{ inputs.source_ref || 'ronghanghu/cc_torch' }}
       BUILD_TORCH_MINOR: ${{ inputs.torch_minor || '11' }}
@@ -78,10 +80,10 @@ jobs:
         with:
           python-version: '${{ env.BUILD_PYTHON_VERSION }}'
 
-      - uses: Jimver/cuda-toolkit@v0.2.29
-        with:
-          cuda: '${{ env.BUILD_CUDA_MAJOR }}.${{ env.BUILD_CUDA_MINOR }}.${{ env.BUILD_CUDA_PATCH }}'
-          use-github-cache: false
+      - name: Install system packages
+        run: |
+          apt-get update
+          apt-get install -y git build-essential
 
       - name: Clone source
         run: |
@@ -95,6 +97,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install torch==2.$BUILD_TORCH_MINOR.$BUILD_TORCH_PATCH --index-url https://download.pytorch.org/whl/cu$BUILD_CUDA_MAJOR$BUILD_CUDA_MINOR
           pip install wheel setuptools ninja packaging
+          nvcc --version
 
       - name: Build wheel
         env:
