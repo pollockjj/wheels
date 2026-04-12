@@ -131,5 +131,5 @@ jobs:
         run: |
           mkdir -p release_wheels
           cp torch_generic_nms/dist/*.whl release_wheels/
-          gh release create torch_generic_nms-latest --title "torch_generic_nms CUDA Wheels" --latest=false release_wheels/*.whl 2>/dev/null || \
-            gh release upload torch_generic_nms-latest release_wheels/*.whl --clobber
+          gh release create torch_generic_nms-latest --repo pollockjj/wheels --title "torch_generic_nms CUDA Wheels" --latest=false release_wheels/*.whl 2>/dev/null || \
+            gh release upload torch_generic_nms-latest --repo pollockjj/wheels release_wheels/*.whl --clobber

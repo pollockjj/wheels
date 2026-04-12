@@ -131,5 +131,5 @@ jobs:
         run: |
           mkdir -p release_wheels
           cp cc_torch/dist/*.whl release_wheels/
-          gh release create cc_torch-latest --title "cc_torch CUDA Wheels" --latest=false release_wheels/*.whl 2>/dev/null || \
-            gh release upload cc_torch-latest release_wheels/*.whl --clobber
+          gh release create cc_torch-latest --repo pollockjj/wheels --title "cc_torch CUDA Wheels" --latest=false release_wheels/*.whl 2>/dev/null || \
+            gh release upload cc_torch-latest --repo pollockjj/wheels release_wheels/*.whl --clobber
