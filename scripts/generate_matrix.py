@@ -232,26 +232,15 @@ def generate_matrix(package_filter: str, overwrite: bool = False,
                         skipped += 1
                         continue
 
-                    # Map short CUDA version to full version for Jimver/cuda-toolkit
-                    cuda_toolkit_versions = {
-                        "12.4": "12.4.1",
-                        "12.6": "12.6.3",
-                        "12.8": "12.8.1",
-                        "13.0": "13.0.0",
-                    }
-                    cuda_toolkit_version = cuda_toolkit_versions.get(cuda, cuda)
-
                     matrix.append({
                         "package": pkg_name,
                         "version": pkg_version,
                         "source_repo": pkg["source_repo"],
                         "source_tag": pkg.get("source_tag", ""),
                         "cuda": cuda,
-                        "cuda_toolkit_version": cuda_toolkit_version,
                         "cuda_short": cuda_short,
                         "pytorch": pytorch,
                         "python": python_ver,
-                        "python_version": python_ver,
                         "platform": platform,
                         "arch_list": combo_arch_list or pkg.get("arch_list") or get_default_arch_list(cuda, pytorch),
                         "extra_deps": pkg.get("extra_deps", ""),
