@@ -1,0 +1,138 @@
+name: Build cc_torch
+
+on:
+  push:
+    branches:
+      - issue_40
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Git ref to build from ronghanghu/cc_torch
+        required: true
+        type: string
+        default: 'ronghanghu/cc_torch'
+      torch_minor:
+        description: PyTorch minor version (e.g. 11 for 2.11.0)
+        required: true
+        type: string
+        default: '11'
+      torch_patch:
+        description: PyTorch patch version (e.g. 0 for 2.11.0)
+        required: true
+        type: string
+        default: '0'
+      cuda_major:
+        description: CUDA major version
+        required: true
+        type: string
+        default: '13'
+      cuda_minor:
+        description: CUDA minor version
+        required: true
+        type: string
+        default: '0'
+      cuda_patch:
+        description: CUDA patch version
+        required: true
+        type: string
+        default: '0'
+      python_version:
+        description: Python version
+        required: true
+        type: string
+        default: '3.12'
+      cuda_arch_list:
+        description: TORCH_CUDA_ARCH_LIST (space-separated)
+        required: true
+        type: string
+        default: '8.6'
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-22.04
+    container:
+      image: nvidia/cuda:13.0.0-devel-ubuntu22.04
+    env:
+      BUILD_SOURCE_REF: ${{ inputs.source_ref || 'ronghanghu/cc_torch' }}
+      BUILD_TORCH_MINOR: ${{ inputs.torch_minor || '11' }}
+      BUILD_TORCH_PATCH: ${{ inputs.torch_patch || '0' }}
+      BUILD_CUDA_MAJOR: ${{ inputs.cuda_major || '13' }}
+      BUILD_CUDA_MINOR: ${{ inputs.cuda_minor || '0' }}
+      BUILD_CUDA_PATCH: ${{ inputs.cuda_patch || '0' }}
+      BUILD_PYTHON_VERSION: ${{ inputs.python_version || '3.12' }}
+      BUILD_CUDA_ARCH_LIST: ${{ inputs.cuda_arch_list || '8.6' }}
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet &
+          sudo rm -rf /usr/local/lib/android &
+          sudo rm -rf /opt/ghc &
+          sudo rm -rf /opt/hostedtoolcache/CodeQL &
+          sudo rm -rf /usr/share/swift &
+          sudo rm -rf /usr/local/graalvm &
+          sudo rm -rf /usr/local/.ghcup &
+          sudo rm -rf /opt/hostedtoolcache/go &
+          sudo apt-get clean &
+          wait
+          df -h
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '${{ env.BUILD_PYTHON_VERSION }}'
+
+      - name: Install system packages
+        run: |
+          apt-get update
+          apt-get install -y git build-essential gh
+
+      - name: Clone source
+        run: |
+          git config --global core.autocrlf false
+          git clone --branch $BUILD_SOURCE_REF --depth 1 https://github.com/ronghanghu/cc_torch.git
+          cd cc_torch
+          git rev-parse HEAD
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch==2.$BUILD_TORCH_MINOR.$BUILD_TORCH_PATCH --index-url https://download.pytorch.org/whl/cu$BUILD_CUDA_MAJOR$BUILD_CUDA_MINOR
+          python -m pip install wheel setuptools ninja packaging
+          nvcc --version
+
+      - name: Build wheel
+        env:
+          TORCH_CUDA_ARCH_LIST: '${{ env.BUILD_CUDA_ARCH_LIST }}'
+        run: |
+          cd cc_torch
+          python setup.py bdist_wheel
+
+      - name: Rename wheel with CUDA and torch tag
+        run: |
+          cd cc_torch/dist
+          for whl in *.whl; do
+            BASENAME="${whl%%-cp*}"
+            REST="${whl#$BASENAME-}"
+            VERSION_TAG="${BASENAME#cc_torch-}"
+            CUDA_TORCH_TAG="+cu$BUILD_CUDA_MAJOR$BUILD_CUDA_MINOR""torch2$BUILD_TORCH_MINOR"
+            NEW_NAME="cc_torch-${VERSION_TAG}${CUDA_TORCH_TAG}-${REST}"
+            mv "$whl" "$NEW_NAME"
+            echo "Renamed: $whl -> $NEW_NAME"
+          done
+          ls -la
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cc-torch-wheel
+          path: cc_torch/dist/*.whl
+
+      - name: Upload to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p release_wheels
+          cp cc_torch/dist/*.whl release_wheels/
+          if gh release view cc_torch-latest --repo pollockjj/wheels >/dev/null 2>&1; then
+            gh release upload cc_torch-latest --repo pollockjj/wheels release_wheels/*.whl --clobber
+          else
+            gh release create cc_torch-latest --repo pollockjj/wheels --target "$GITHUB_SHA" --title "cc_torch CUDA Wheels" --notes "" release_wheels/*.whl
+          fi
