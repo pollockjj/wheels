@@ -50,6 +50,15 @@ on:
 jobs:
   build-linux:
     runs-on: ubuntu-22.04
+    env:
+      BUILD_SOURCE_REF: ${{ inputs.source_ref || 'ronghanghu/torch_generic_nms' }}
+      BUILD_TORCH_MINOR: ${{ inputs.torch_minor || '11' }}
+      BUILD_TORCH_PATCH: ${{ inputs.torch_patch || '0' }}
+      BUILD_CUDA_MAJOR: ${{ inputs.cuda_major || '13' }}
+      BUILD_CUDA_MINOR: ${{ inputs.cuda_minor || '0' }}
+      BUILD_CUDA_PATCH: ${{ inputs.cuda_patch || '0' }}
+      BUILD_PYTHON_VERSION: ${{ inputs.python_version || '3.12' }}
+      BUILD_CUDA_ARCH_LIST: ${{ inputs.cuda_arch_list || '8.6' }}
     steps:
       - name: Free disk space
         run: |
@@ -67,29 +76,29 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: '${{ inputs.python_version }}'
+          python-version: '${{ env.BUILD_PYTHON_VERSION }}'
 
       - uses: Jimver/cuda-toolkit@v0.2.29
         with:
-          cuda: '${{ inputs.cuda_major }}.${{ inputs.cuda_minor }}.${{ inputs.cuda_patch }}'
+          cuda: '${{ env.BUILD_CUDA_MAJOR }}.${{ env.BUILD_CUDA_MINOR }}.${{ env.BUILD_CUDA_PATCH }}'
           use-github-cache: false
 
       - name: Clone source
         run: |
           git config --global core.autocrlf false
-          git clone --branch ${{ inputs.source_ref }} --depth 1 https://github.com/ronghanghu/torch_generic_nms.git
+          git clone --branch $BUILD_SOURCE_REF --depth 1 https://github.com/ronghanghu/torch_generic_nms.git
           cd torch_generic_nms
           git rev-parse HEAD
 
       - name: Install build dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install torch==2.${{ inputs.torch_minor }}.${{ inputs.torch_patch }} --index-url https://download.pytorch.org/whl/cu${{ inputs.cuda_major }}${{ inputs.cuda_minor }}
+          pip install torch==2.$BUILD_TORCH_MINOR.$BUILD_TORCH_PATCH --index-url https://download.pytorch.org/whl/cu$BUILD_CUDA_MAJOR$BUILD_CUDA_MINOR
           pip install wheel setuptools ninja packaging
 
       - name: Build wheel
         env:
-          TORCH_CUDA_ARCH_LIST: '${{ inputs.cuda_arch_list }}'
+          TORCH_CUDA_ARCH_LIST: '${{ env.BUILD_CUDA_ARCH_LIST }}'
         run: |
           cd torch_generic_nms
           python setup.py bdist_wheel
@@ -101,7 +110,7 @@ jobs:
             BASENAME="${whl%%-cp*}"
             REST="${whl#$BASENAME-}"
             VERSION_TAG="${BASENAME#torch_generic_nms-}"
-            CUDA_TORCH_TAG="+cu${{ inputs.cuda_major }}${{ inputs.cuda_minor }}torch2${{ inputs.torch_minor }}"
+            CUDA_TORCH_TAG="+cu$BUILD_CUDA_MAJOR$BUILD_CUDA_MINOR""torch2$BUILD_TORCH_MINOR"
             NEW_NAME="torch_generic_nms-${VERSION_TAG}${CUDA_TORCH_TAG}-${REST}"
             mv "$whl" "$NEW_NAME"
             echo "Renamed: $whl -> $NEW_NAME"
