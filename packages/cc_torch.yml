@@ -1,7 +1,7 @@
 name: cc_torch
 source_repo: ronghanghu/cc_torch
 source_tag: ""  # Use main branch
-upstream_source: "https://github.com/PozzettiAndrea/cuda-wheels/blob/main/packages/cc_torch.yml"
+upstream_source: "ronghanghu/cc_torch"
 
 free_disk_space: true
 

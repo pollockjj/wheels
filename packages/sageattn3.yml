@@ -1,7 +1,7 @@
 name: sageattn3
 source_repo: thu-ml/SageAttention
 source_tag: v2.2.0
-upstream_source: "https://github.com/PozzettiAndrea/cuda-wheels/blob/main/packages/sageattn3.yml"
+upstream_source: "thu-ml/SageAttention"
 version: "1.0.0"
 
 arch_list: "10.0 12.0"

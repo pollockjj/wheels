@@ -1,7 +1,7 @@
 name: torch_generic_nms
 source_repo: ronghanghu/torch_generic_nms
 source_tag: ""
-upstream_source: "https://github.com/PozzettiAndrea/cuda-wheels/blob/main/packages/torch_generic_nms.yml"
+upstream_source: "ronghanghu/torch_generic_nms"
 
 build_matrix:
   combinations:
