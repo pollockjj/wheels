@@ -131,5 +131,8 @@ jobs:
         run: |
           mkdir -p release_wheels
           cp cc_torch/dist/*.whl release_wheels/
-          gh release create cc_torch-latest --repo pollockjj/wheels --title "cc_torch CUDA Wheels" --latest=false release_wheels/*.whl 2>/dev/null || \
+          if gh release view cc_torch-latest --repo pollockjj/wheels >/dev/null 2>&1; then
             gh release upload cc_torch-latest --repo pollockjj/wheels release_wheels/*.whl --clobber
+          else
+            gh release create cc_torch-latest --repo pollockjj/wheels --target "$GITHUB_SHA" --title "cc_torch CUDA Wheels" --notes "" --latest=false release_wheels/*.whl
+          fi
