@@ -1,6 +1,7 @@
 name: cc_torch
 source_repo: ronghanghu/cc_torch
 source_tag: ""  # Use main branch
+version: "0.5.0"
 upstream_source: "ronghanghu/cc_torch"
 
 free_disk_space: true
