@@ -1,7 +1,7 @@
 name: triton
 source_repo: triton-lang/triton
 source_tag: v3.3.0
-upstream_source: "Adapted from existing build-triton.yml workflow in this repo"
+upstream_source: "https://github.com/triton-lang/triton"
 version: "3.3.0"
 
 free_disk_space: true
