@@ -1,6 +1,9 @@
 name: Build cc_torch
 
 on:
+  push:
+    branches:
+      - issue_40
   workflow_dispatch:
     inputs:
       source_ref:
