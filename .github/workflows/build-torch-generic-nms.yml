@@ -134,5 +134,5 @@ jobs:
           if gh release view torch_generic_nms-latest --repo pollockjj/wheels >/dev/null 2>&1; then
             gh release upload torch_generic_nms-latest --repo pollockjj/wheels release_wheels/*.whl --clobber
           else
-            gh release create torch_generic_nms-latest --repo pollockjj/wheels --target "$GITHUB_SHA" --title "torch_generic_nms CUDA Wheels" --notes "" --latest=false release_wheels/*.whl
+            gh release create torch_generic_nms-latest --repo pollockjj/wheels --target "$GITHUB_SHA" --title "torch_generic_nms CUDA Wheels" --notes "" release_wheels/*.whl
           fi
