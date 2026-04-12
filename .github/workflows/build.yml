@@ -128,7 +128,7 @@ jobs:
         if: steps.check.outputs.exists != 'true'
         uses: Jimver/cuda-toolkit@v0.2.29
         with:
-          cuda: ${{ matrix.cuda }}
+          cuda: ${{ matrix.cuda_toolkit_version || matrix.cuda }}
           use-github-cache: false
 
       - name: Setup build environment
@@ -218,7 +218,7 @@ jobs:
         if: steps.check.outputs.exists != 'true'
         uses: Jimver/cuda-toolkit@v0.2.29
         with:
-          cuda: ${{ matrix.cuda }}
+          cuda: ${{ matrix.cuda_toolkit_version || matrix.cuda }}
           use-github-cache: false
 
       - uses: ilammy/msvc-dev-cmd@v1
