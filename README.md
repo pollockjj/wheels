@@ -4,13 +4,13 @@ Pre-built CUDA Python wheels for packages used by ComfyUI custom nodes. Spec-dri
 
 ## Packages
 
-| Package | Source |
-|:--|:--|
-| cc_torch | [ronghanghu/cc_torch](https://github.com/ronghanghu/cc_torch) |
-| flash_attn | [Dao-AILab/flash-attention](https://github.com/Dao-AILab/flash-attention) |
-| sageattention | [thu-ml/SageAttention](https://github.com/thu-ml/SageAttention) |
-| sageattn3 | [thu-ml/SageAttention](https://github.com/thu-ml/SageAttention) |
-| torch_generic_nms | [ronghanghu/torch_generic_nms](https://github.com/ronghanghu/torch_generic_nms) |
+| Package | Source | Custom Nodes |
+|:--|:--|:--|
+| cc_torch | [ronghanghu/cc_torch](https://github.com/ronghanghu/cc_torch) | [pollockjj/ComfyUI-SAM3](https://github.com/pollockjj/ComfyUI-SAM3) |
+| flash_attn | [Dao-AILab/flash-attention](https://github.com/Dao-AILab/flash-attention) | [pollockjj/ComfyUI-SAM3](https://github.com/pollockjj/ComfyUI-SAM3) |
+| sageattention | [thu-ml/SageAttention](https://github.com/thu-ml/SageAttention) | |
+| sageattn3 | [thu-ml/SageAttention](https://github.com/thu-ml/SageAttention) | |
+| torch_generic_nms | [ronghanghu/torch_generic_nms](https://github.com/ronghanghu/torch_generic_nms) | [pollockjj/ComfyUI-SAM3](https://github.com/pollockjj/ComfyUI-SAM3) |
 
 ## Building a wheel
 
