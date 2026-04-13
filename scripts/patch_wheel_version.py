@@ -96,20 +96,28 @@ def fix_wheel(wheel_path: Path) -> bool:
         content = metadata_path.read_text(encoding="utf-8")
 
         m = re.search(r"^Version: (.+)$", content, re.MULTILINE)
-        if m and m.group(1) == version:
+        if not m:
+            print(f"  WARNING: No Version header found in METADATA for {filename}, skipping")
+            return False
+
+        if m.group(1) == version:
             print(f"  {filename}: already correct ({version})")
             return False
 
-        current_version = m.group(1) if m else "unknown"
+        current_version = m.group(1)
         print(f"  {filename}: {current_version} -> {version}")
 
         # Update Version in METADATA
-        content = re.sub(
+        content, count = re.subn(
             r"^Version: .+$",
             f"Version: {version}",
             content,
+            count=1,
             flags=re.MULTILINE,
         )
+        if count != 1:
+            print(f"  WARNING: Failed to update Version header in {filename}, skipping")
+            return False
         metadata_path.write_text(content, encoding="utf-8")
 
         # Rename dist-info directory to match new version

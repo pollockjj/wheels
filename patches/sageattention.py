@@ -41,7 +41,8 @@ old_abi = """    ABI = 1 if torch._C._GLIBCXX_USE_CXX11_ABI else 0
     CXX_FLAGS += [f"-D_GLIBCXX_USE_CXX11_ABI={ABI}"]
     NVCC_FLAGS += [f"-D_GLIBCXX_USE_CXX11_ABI={ABI}"]"""
 
-new_abi = """    if platform.system() != "Windows":
+new_abi = """    import platform
+    if platform.system() != "Windows":
         ABI = 1 if torch._C._GLIBCXX_USE_CXX11_ABI else 0
         CXX_FLAGS += [f"-D_GLIBCXX_USE_CXX11_ABI={ABI}"]
         NVCC_FLAGS += [f"-D_GLIBCXX_USE_CXX11_ABI={ABI}"]"""

@@ -177,10 +177,14 @@ def generate_matrix(package_filter: str, overwrite: bool = False,
         pkg_name = pkg["name"].replace("-", "_")
         pkg_version = detected_version or pkg.get("version", "")
 
-        if pkg_version:
-            print(f"Detected version {pkg_version} for {pkg['name']}")
-        else:
-            print(f"WARNING: No version found for {pkg['name']}")
+        if not pkg_version:
+            raise ValueError(
+                f"Unable to resolve version for package '{pkg['name']}'. "
+                "Set 'version' in the package YAML or ensure pyproject.toml/version.txt "
+                "is available in the source repository."
+            )
+
+        print(f"Detected version {pkg_version} for {pkg['name']}")
 
         # Fetch existing wheels for this package (skip when overwriting)
         existing_wheels = set()

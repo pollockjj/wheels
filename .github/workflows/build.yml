@@ -128,7 +128,7 @@ jobs:
             echo "::notice::Overwrite enabled, will rebuild"
           else
             # Require manylinux (auditwheel-repaired) wheels on Linux
-            MATCHING=$({ gh release view "$RELEASE" --json assets -q ".assets[].name" 2>/dev/null || true; } | grep "^${WHEEL_PREFIX}" | grep "manylinux" | head -1 || true)
+            MATCHING=$({ gh release view "$RELEASE" --json assets -q ".assets[].name" 2>/dev/null || true; } | grep -F "${WHEEL_PREFIX}" | grep "manylinux" | head -1 || true)
             if [ -n "$MATCHING" ]; then
               echo "exists=true" >> $GITHUB_OUTPUT
               echo "::notice::Wheel exists in release: $MATCHING"
@@ -237,7 +237,7 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
             echo "::notice::Overwrite enabled, will rebuild"
           else
-            MATCHING=$({ gh release view "$RELEASE" --json assets -q ".assets[].name" 2>/dev/null || true; } | grep "^${WHEEL_PREFIX}" | grep "win_amd64" | head -1 || true)
+            MATCHING=$({ gh release view "$RELEASE" --json assets -q ".assets[].name" 2>/dev/null || true; } | grep -F "${WHEEL_PREFIX}" | grep "win_amd64" | head -1 || true)
             if [ -n "$MATCHING" ]; then
               echo "exists=true" >> $GITHUB_OUTPUT
               echo "::notice::Wheel exists in release: $MATCHING"
@@ -334,9 +334,6 @@ jobs:
           for pkg_dir in releases/*/; do
             pkg=$(basename "$pkg_dir")
             echo "Creating release for: $pkg"
-
-            # Get version from first wheel filename
-            version=$(ls "$pkg_dir"/*.whl | head -1 | sed "s/.*${pkg}-//" | sed 's/+.*//')
 
             NOTES="Pre-built ${pkg} wheels with CUDA support."$'\n\n'"**Install:**"$'\n'"\`\`\`bash"$'\n'"pip install ${pkg} --extra-index-url https://pollockjj.github.io/wheels"$'\n'"\`\`\`"
             gh release create "${pkg}-latest" \
