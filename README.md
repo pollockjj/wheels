@@ -1,15 +1,32 @@
-## Build Triton
+# Comfy CUDA Wheels
 
-1. Run the workflow 'Build Triton'. Set 'Git tag' (e.g. `v3.3.x-windows` as of now) and 'Triton wheel version suffix' (e.g. `.post18` for a regular release and `a0.post18` for a pre-release)
-2. Download the artifacts
-3. Do some sanity checks locally, e.g. diff with the last wheel, pip install the wheel, run it in ComfyUI
-4. Upload the wheels to PyPI using [twine](https://packaging.python.org/en/latest/tutorials/packaging-projects/#uploading-the-distribution-archives)
+Pre-built CUDA Python wheels for packages used by ComfyUI custom nodes. Spec-driven build pipeline consuming `packages/*.yml` configurations.
 
-The workflow 'Build and Test Triton' runs all unit tests. It requires a self-hosted runner with GPU. Due to the cost, we only turn on the VM when there is a significant release.
+## Packages
 
-## Build SageAttention
+| Package | Source |
+|:--|:--|
+| flash_attn | [Dao-AILab/flash-attention](https://github.com/Dao-AILab/flash-attention) |
+| sageattn | [thu-ml/SageAttention](https://github.com/thu-ml/SageAttention) |
+| sageattn3 | [thu-ml/SageAttention](https://github.com/thu-ml/SageAttention) |
+| cc_torch | [ronghanghu/cc_torch](https://github.com/ronghanghu/cc_torch) |
+| torch_generic_nms | [ronghanghu/torch_generic_nms](https://github.com/ronghanghu/torch_generic_nms) |
+| triton | [triton-lang/triton](https://github.com/triton-lang/triton) |
 
-1. Run the workflow 'Build SageAttention'. We support torch 2.5.1 + CUDA 12.4.1 and torch 2.6.0 + CUDA 12.6.3 as of now
-2. Download the artifacts
-3. Do some sanity checks locally
-4. Upload the wheels to GitHub releases
+## Building a wheel
+
+1. Ensure a package spec exists in `packages/<name>.yml`
+2. Run: `gh workflow run build.yml --repo pollockjj/wheels -f package=<name>`
+3. Download the wheel from the GitHub release
+
+## Package index
+
+Wheels are served via PEP 503 index at the GitHub Pages URL for this repository.
+
+## Adding a package
+
+Create `packages/<name>.yml` with required fields: `name`, `source_repo`, `version`, `build_matrix`. See existing specs for format.
+
+## Attribution
+
+See [ATTRIBUTION.md](ATTRIBUTION.md) for upstream source credits.
