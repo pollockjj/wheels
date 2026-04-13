@@ -195,11 +195,10 @@ jobs:
   build-windows-github:
     name: Windows ${{ matrix.package }} py${{ matrix.python }} cu${{ matrix.cuda_short }} torch${{ matrix.pytorch }}
     needs: generate-matrix
-    if: matrix.package == 'sageattention'
     runs-on: windows-2022
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix).windows }}
+      matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix).windows_github }}
     permissions:
       contents: read
 
@@ -297,11 +296,10 @@ jobs:
   build-windows-selfhosted:
     name: Windows ${{ matrix.package }} py${{ matrix.python }} cu${{ matrix.cuda_short }} torch${{ matrix.pytorch }}
     needs: generate-matrix
-    if: matrix.package != 'sageattention'
     runs-on: [self-hosted, Windows]
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix).windows }}
+      matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix).windows_selfhosted }}
     permissions:
       contents: read
 

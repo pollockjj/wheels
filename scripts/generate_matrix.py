@@ -276,20 +276,27 @@ def main():
     matrix = generate_matrix(args.package, overwrite=args.overwrite,
                             platform_filter=args.platform, cuda_filter=args.cuda)
 
-    # Split by platform
+    # Split by platform and runner class
     linux_jobs = [j for j in matrix if j["platform"] == "linux"]
     windows_jobs = [j for j in matrix if j["platform"] == "windows"]
+    windows_github_jobs = [j for j in windows_jobs if j["package"] == "sageattention"]
+    windows_selfhosted_jobs = [j for j in windows_jobs if j["package"] != "sageattention"]
 
     output = {
         "linux": {"include": linux_jobs},
-        "windows": {"include": windows_jobs},
+        "windows_github": {"include": windows_github_jobs},
+        "windows_selfhosted": {"include": windows_selfhosted_jobs},
     }
 
     with open(args.output, "w") as f:
         # No indent - GitHub Actions needs single-line JSON for GITHUB_OUTPUT
         json.dump(output, f, separators=(',', ':'))
 
-    print(f"Generated {len(matrix)} build jobs ({len(linux_jobs)} Linux, {len(windows_jobs)} Windows)")
+    print(
+        f"Generated {len(matrix)} build jobs "
+        f"({len(linux_jobs)} Linux, {len(windows_github_jobs)} Windows GitHub-hosted, "
+        f"{len(windows_selfhosted_jobs)} Windows self-hosted)"
+    )
 
     # Also print to stdout for debugging
     for job in matrix:
