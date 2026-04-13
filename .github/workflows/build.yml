@@ -11,6 +11,7 @@ on:
         options:
           - all
           - cc_torch
+          - flash_attn
           - sageattention
           - sageattn3
           - torch_generic_nms
