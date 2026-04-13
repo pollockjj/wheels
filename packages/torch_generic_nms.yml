@@ -1,6 +1,7 @@
 name: torch_generic_nms
 source_repo: ronghanghu/torch_generic_nms
 source_tag: ""  # Use main branch
+version: "0.1"
 
 free_disk_space: true
 
