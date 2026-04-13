@@ -25,6 +25,7 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    # ============== LINUX ==============
     - name: Restore CUDA cache (Linux)
       if: inputs.platform == 'linux'
       id: cuda-cache-linux
@@ -50,6 +51,7 @@ runs:
           libcurand-dev-${CUDA_APT} \
           libcusolver-dev-${CUDA_APT}
 
+        # Install extra components if specified (e.g., "cufft_dev nvtx")
         EXTRA="${{ inputs.extra-components }}"
         if [ -n "$EXTRA" ]; then
           EXTRA_PKGS=""
@@ -64,6 +66,7 @@ runs:
           sudo apt-get install -y $EXTRA_PKGS
         fi
 
+        # Copy to cacheable workspace location
         mkdir -p .cuda-cache
         cp -r /usr/local/cuda-${{ inputs.cuda-version }} .cuda-cache/
 
@@ -86,8 +89,10 @@ runs:
       run: |
         echo "/usr/local/cuda-${{ inputs.cuda-version }}/bin" >> $GITHUB_PATH
         echo "CUDA_HOME=/usr/local/cuda-${{ inputs.cuda-version }}" >> $GITHUB_ENV
+        # Create /usr/local/cuda symlink for packages that expect it (e.g., cumm/spconv)
         sudo ln -sf /usr/local/cuda-${{ inputs.cuda-version }} /usr/local/cuda
 
+    # ============== WINDOWS ==============
     - name: Restore CUDA cache (Windows)
       if: inputs.platform == 'windows'
       id: cuda-cache-windows
@@ -102,6 +107,8 @@ runs:
       run: |
         $cudaVersion = "${{ inputs.cuda-version }}"
         $installerType = "${{ inputs.installer-type }}"
+
+        # Network installers (~30MB, faster download)
         $networkUrls = @{
           "12.4" = "https://developer.download.nvidia.com/compute/cuda/12.4.1/network_installers/cuda_12.4.1_windows_network.exe"
           "12.6" = "https://developer.download.nvidia.com/compute/cuda/12.6.3/network_installers/cuda_12.6.3_windows_network.exe"
@@ -109,6 +116,8 @@ runs:
           "12.9" = "https://developer.download.nvidia.com/compute/cuda/12.9.0/network_installers/cuda_12.9.0_windows_network.exe"
           "13.0" = "https://developer.download.nvidia.com/compute/cuda/13.0.1/network_installers/cuda_13.0.1_windows_network.exe"
         }
+
+        # Local installers (~3GB, more reliable)
         $localUrls = @{
           "12.4" = "https://developer.download.nvidia.com/compute/cuda/12.4.1/local_installers/cuda_12.4.1_551.78_windows.exe"
           "12.6" = "https://developer.download.nvidia.com/compute/cuda/12.6.3/local_installers/cuda_12.6.3_561.17_windows.exe"
@@ -116,7 +125,9 @@ runs:
           "12.9" = "https://developer.download.nvidia.com/compute/cuda/12.9.0/local_installers/cuda_12.9.0_576.02_windows.exe"
           "13.0" = "https://developer.download.nvidia.com/compute/cuda/13.0.1/local_installers/cuda_13.0.1_windows.exe"
         }
+
         $installerUrls = if ($installerType -eq "local") { $localUrls } else { $networkUrls }
+
         if (-not $installerUrls.ContainsKey($cudaVersion)) {
           throw "Unsupported CUDA version: $cudaVersion. Supported: $($installerUrls.Keys -join ', ')"
         }
@@ -124,6 +135,7 @@ runs:
         Write-Host "Downloading CUDA ($installerType installer) from $installerUrl"
         Invoke-WebRequest -Uri $installerUrl -OutFile "cuda_installer.exe" -UseBasicParsing
 
+        # Base components needed for most builds (matches original wheel repos)
         $components = @(
           "nvcc_$cudaVersion",
           "cudart_$cudaVersion",
@@ -135,6 +147,7 @@ runs:
           "thrust_$cudaVersion"
         )
 
+        # CUDA 13.0+ needs additional components (crt, nvvm, nvptxcompiler)
         $cudaMajor = [int]($cudaVersion.Split('.')[0])
         if ($cudaMajor -ge 13) {
           $components += @(
@@ -144,6 +157,7 @@ runs:
           )
         }
 
+        # Add extra components from config (e.g., "curand_dev cufft_dev nvtx")
         $extraComponents = "${{ inputs.extra-components }}"
         if ($extraComponents) {
           $extraComponents.Split(' ') | ForEach-Object {
@@ -193,6 +207,7 @@ runs:
         echo "$cudaPath\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
         echo "CUDA_HOME=$cudaPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
+    # Set combined output
     - name: Set cache-hit output
       id: cuda-cache
       shell: bash

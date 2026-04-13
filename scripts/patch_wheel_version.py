@@ -1,6 +1,17 @@
 #!/usr/bin/env python3
 """
 Patch wheel METADATA to include the full version from the wheel filename.
+
+After building, wheels are renamed to include a local version identifier
+(e.g., +cu130torch29), but the internal METADATA still has the base version.
+This script fixes that mismatch so tools like uv/pip see consistent versions.
+
+Usage:
+    python patch_wheel_version.py <wheel_or_directory> [...]
+
+Examples:
+    python patch_wheel_version.py dist/
+    python patch_wheel_version.py my_package-0.2+cu130torch29-cp312-cp312-linux_x86_64.whl
 """
 
 import base64
@@ -15,6 +26,10 @@ from pathlib import Path
 
 
 def extract_version_from_filename(filename: str) -> tuple[str, str]:
+    """Extract package name and full version from wheel filename.
+
+    Returns (package_name, version) e.g. ('sageattention', '0.2+cu130torch29')
+    """
     m = re.match(r"^([A-Za-z0-9_]+)-([^-]+)-(cp|py)", filename)
     if not m:
         raise ValueError(f"Could not parse wheel filename: {filename}")
@@ -22,12 +37,14 @@ def extract_version_from_filename(filename: str) -> tuple[str, str]:
 
 
 def hash_content(data: bytes) -> tuple[str, int]:
+    """Return (sha256=urlsafe_b64_hash, size) for RECORD."""
     digest = hashlib.sha256(data).digest()
     b64 = base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
     return f"sha256={b64}", len(data)
 
 
 def rebuild_record(tmpdir: Path, dist_info_name: str) -> None:
+    """Regenerate the RECORD file with correct hashes for all files."""
     record_path = tmpdir / dist_info_name / "RECORD"
     record_rel = f"{dist_info_name}/RECORD"
 
@@ -37,10 +54,12 @@ def rebuild_record(tmpdir: Path, dist_info_name: str) -> None:
             continue
         rel = str(file.relative_to(tmpdir))
         if rel == record_rel:
+            # RECORD itself gets an empty hash
             continue
         digest, size = hash_content(file.read_bytes())
         rows.append((rel, digest, str(size)))
 
+    # RECORD entry for itself: empty hash and size
     rows.append((record_rel, "", ""))
 
     buf = io.StringIO()
@@ -50,6 +69,7 @@ def rebuild_record(tmpdir: Path, dist_info_name: str) -> None:
 
 
 def fix_wheel(wheel_path: Path) -> bool:
+    """Fix METADATA version in a wheel file in-place. Returns True if modified."""
     filename = wheel_path.name
     pkg_name, version = extract_version_from_filename(filename)
 
@@ -76,16 +96,31 @@ def fix_wheel(wheel_path: Path) -> bool:
         content = metadata_path.read_text(encoding="utf-8")
 
         m = re.search(r"^Version: (.+)$", content, re.MULTILINE)
-        if m and m.group(1) == version:
+        if not m:
+            print(f"  WARNING: No Version header found in METADATA for {filename}, skipping")
+            return False
+
+        if m.group(1) == version:
             print(f"  {filename}: already correct ({version})")
             return False
 
-        current_version = m.group(1) if m else "unknown"
+        current_version = m.group(1)
         print(f"  {filename}: {current_version} -> {version}")
 
-        content = re.sub(r"^Version: .+$", f"Version: {version}", content, flags=re.MULTILINE)
+        # Update Version in METADATA
+        content, count = re.subn(
+            r"^Version: .+$",
+            f"Version: {version}",
+            content,
+            count=1,
+            flags=re.MULTILINE,
+        )
+        if count != 1:
+            print(f"  WARNING: Failed to update Version header in {filename}, skipping")
+            return False
         metadata_path.write_text(content, encoding="utf-8")
 
+        # Rename dist-info directory to match new version
         old_name = dist_info.name
         new_name = f"{pkg_name}-{version}.dist-info"
         if old_name != new_name:
@@ -93,8 +128,10 @@ def fix_wheel(wheel_path: Path) -> bool:
             dist_info.rename(new_dist_info)
             dist_info = new_dist_info
 
+        # Rebuild RECORD with correct hashes
         rebuild_record(tmpdir, dist_info.name)
 
+        # Repack wheel
         with zipfile.ZipFile(wheel_path, "w", zipfile.ZIP_DEFLATED) as zf:
             for file in sorted(tmpdir.rglob("*")):
                 if file.is_file():

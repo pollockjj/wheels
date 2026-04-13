@@ -92,10 +92,14 @@ runs:
         export TORCH_CUDA_ARCH_LIST="${{ inputs.arch-list }}"
         export CUDA_HOME=/usr/local/cuda-${{ inputs.cuda-version }}
         export MAX_JOBS=${{ inputs.max-jobs }}
+        # Force CUDA build even without a GPU (torch.cuda.is_available() is False on CI)
         export FORCE_CUDA=1
+        # Add CUDA stubs to library path for linking (libcuda.so)
         export LIBRARY_PATH=/usr/local/cuda-${{ inputs.cuda-version }}/lib64/stubs:${LIBRARY_PATH:-}
+        # For cumm/spconv: set CUDA version for prebuilt mode
         export CUMM_CUDA_VERSION="${{ inputs.cuda-version }}"
         export CUMM_CUDA_ARCH_LIST="${{ inputs.arch-list }}"
+        # For cumm/spconv: disable JIT to force ahead-of-time CUDA compilation
         export CUMM_DISABLE_JIT=1
         export SPCONV_DISABLE_JIT=1
         pip wheel . --no-build-isolation --no-deps -v -w dist
@@ -109,12 +113,17 @@ runs:
         if [ -n "${{ inputs.build-subdir }}" ]; then
           BUILD_DIR="source/${{ inputs.build-subdir }}"
         fi
+        # Add CUDA toolkit libs so auditwheel can find and bundle them (e.g. libnvrtc-builtins.so)
         export LD_LIBRARY_PATH=/usr/local/cuda-${{ inputs.cuda-version }}/lib64:${LD_LIBRARY_PATH:-}
         cd $BUILD_DIR/dist
         for whl in *.whl; do
+          # Skip pure Python wheels
           if [[ "$whl" == *"-py3-none-any.whl" ]]; then
             continue
           fi
+          # Bundle external shared libs into the wheel
+          # Exclude: driver libs (must come from host), PyTorch libs (installed separately),
+          # CUDA runtime (provided by PyTorch or the CUDA toolkit)
           if auditwheel repair "$whl" \
             --plat manylinux_2_35_x86_64 \
             -w repaired/ \
@@ -145,9 +154,12 @@ runs:
       if: inputs.platform == 'windows'
       shell: powershell
       run: |
+        # Ensure ninja is in PATH (pip Scripts directory)
         $pythonPath = (python -c "import sys; print(sys.prefix)")
         $scriptsPath = "$pythonPath\Scripts"
         $env:PATH = "$scriptsPath;$env:PATH"
+
+        # Verify ninja is available
         Write-Host "Checking ninja..."
         ninja --version
 
@@ -159,9 +171,12 @@ runs:
         $env:TORCH_CUDA_ARCH_LIST = "${{ inputs.arch-list }}"
         $env:MAX_JOBS = "${{ inputs.max-jobs }}"
         $env:DISTUTILS_USE_SDK = "1"
+        # Force CUDA build even without a GPU (torch.cuda.is_available() is False on CI)
         $env:FORCE_CUDA = "1"
+        # For cumm/spconv: set CUDA version for prebuilt mode
         $env:CUMM_CUDA_VERSION = "${{ inputs.cuda-version }}"
         $env:CUMM_CUDA_ARCH_LIST = "${{ inputs.arch-list }}"
+        # For cumm/spconv: disable JIT to force ahead-of-time CUDA compilation
         $env:CUMM_DISABLE_JIT = "1"
         $env:SPCONV_DISABLE_JIT = "1"
         pip wheel . --no-build-isolation --no-deps -v -w dist
@@ -179,6 +194,7 @@ runs:
         CUDA_SHORT="${{ inputs.cuda-short }}"
         TORCH_MM=$(echo "${{ inputs.pytorch-version }}" | cut -d. -f1,2)
         for f in *.whl; do
+          # Skip pure Python wheels (py3-none-any) - they don't have CUDA code
           if [[ "$f" == *"-py3-none-any.whl" ]]; then
             echo "WARNING: Built pure Python wheel $f - CUDA compilation may have failed"
             newname="$f"
@@ -204,10 +220,12 @@ runs:
         $cudaShort = "${{ inputs.cuda-short }}"
         $torchMM = "${{ inputs.pytorch-version }}".Split('.')[0..1] -join '.'
         Get-ChildItem *.whl | ForEach-Object {
+          # Skip pure Python wheels (py3-none-any) - they don't have CUDA code
           if ($_.Name -like "*-py3-none-any.whl") {
             Write-Host "WARNING: Built pure Python wheel $($_.Name) - CUDA compilation may have failed"
             $newName = $_.Name
           } else {
+            # Only replace first occurrence of -cp (use regex with explicit pattern)
             $newName = $_.Name -replace '^([^-]+-[^-]+)-cp', "`$1+cu${cudaShort}torch${torchMM}-cp"
             Rename-Item $_.FullName $newName
           }
@@ -219,6 +237,9 @@ runs:
     - name: Fix wheel METADATA version
       shell: bash
       run: |
+        # The wheel filename includes the local version (e.g., +cu130torch29)
+        # but the internal METADATA still has the base version from pyproject.toml.
+        # Fix the METADATA to match the filename so pip/uv see consistent versions.
         python $GITHUB_WORKSPACE/scripts/patch_wheel_version.py $GITHUB_WORKSPACE/dist
 
     - name: Set wheel-path output

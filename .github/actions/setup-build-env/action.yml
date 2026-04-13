@@ -32,6 +32,7 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
 
+    # ============== LINUX ==============
     - name: Restore uv cache (Linux)
       if: inputs.platform == 'linux'
       id: uv-cache-linux
@@ -58,6 +59,7 @@ runs:
         path: ~/.cache/uv
         key: uv-linux-cu${{ inputs.cuda-short }}-torch${{ inputs.pytorch-version }}
 
+    # ============== WINDOWS ==============
     - name: Restore uv cache (Windows)
       if: inputs.platform == 'windows'
       id: uv-cache-windows
@@ -78,6 +80,7 @@ runs:
       if: inputs.platform == 'windows'
       shell: bash
       run: |
+        # Fix for https://github.com/pytorch/pytorch/issues/166123
         TORCH_PATH=$(python -c "import torch; print(torch.__path__[0])")
         HEADER_FILE="$TORCH_PATH/include/torch/csrc/dynamo/compiled_autograd.h"
         if [ -f "$HEADER_FILE" ]; then
@@ -99,6 +102,7 @@ runs:
         path: ~\AppData\Local\uv\cache
         key: uv-windows-cu${{ inputs.cuda-short }}-torch${{ inputs.pytorch-version }}
 
+    # Set combined output
     - name: Set cache-hit output
       id: uv-cache
       shell: bash

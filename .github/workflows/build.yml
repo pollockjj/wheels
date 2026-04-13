@@ -11,6 +11,9 @@ on:
         options:
           - all
           - cc_torch
+          - flash_attn
+          - sageattention
+          - sageattn3
           - torch_generic_nms
       overwrite:
         description: 'Rebuild and overwrite existing wheels'
@@ -97,12 +100,15 @@ jobs:
       - name: Compute wheel filename
         id: meta
         run: |
+          # Version detection is done in generate_matrix.py - just use matrix values
           PKG_NAME="${{ matrix.package }}"
           PKG_VERSION="${{ matrix.version }}"
           CUDA_SHORT="${{ matrix.cuda_short }}"
           TORCH_SHORT=$(echo "${{ matrix.pytorch }}" | cut -d. -f1,2)
           PY_SHORT=$(echo "${{ matrix.python }}" | tr -d '.')
+          # Prefix without platform tag (auditwheel changes linux_x86_64 → manylinux_*)
           WHEEL_PREFIX="${PKG_NAME}-${PKG_VERSION}+cu${CUDA_SHORT}torch${TORCH_SHORT}-cp${PY_SHORT}-cp${PY_SHORT}-"
+
           echo "wheel_prefix=$WHEEL_PREFIX" >> $GITHUB_OUTPUT
           echo "pkg_name=$PKG_NAME" >> $GITHUB_OUTPUT
           echo "pkg_version=$PKG_VERSION" >> $GITHUB_OUTPUT
@@ -121,11 +127,12 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
             echo "::notice::Overwrite enabled, will rebuild"
           else
-            MATCHING=$({ gh release view "$RELEASE" --repo pollockjj/wheels --json assets -q ".assets[].name" 2>/dev/null || true; } | grep "^${WHEEL_PREFIX}" | grep "manylinux" | head -1 || true)
+            # Require manylinux (auditwheel-repaired) wheels on Linux
+            MATCHING=$({ gh release view "$RELEASE" --json assets -q ".assets[].name" 2>/dev/null || true; } | grep -F "${WHEEL_PREFIX}" | grep "manylinux" | head -1 || true)
             if [ -n "$MATCHING" ]; then
               echo "exists=true" >> $GITHUB_OUTPUT
               echo "::notice::Wheel exists in release: $MATCHING"
-              gh release download "$RELEASE" --repo pollockjj/wheels -p "$MATCHING" -D dist
+              gh release download "$RELEASE" -p "$MATCHING" -D dist
             else
               echo "exists=false" >> $GITHUB_OUTPUT
               echo "::notice::No manylinux wheel found matching: ${WHEEL_PREFIX}*"
@@ -150,6 +157,14 @@ jobs:
           cuda-short: ${{ matrix.cuda_short }}
           platform: linux
           extra-deps: ${{ matrix.extra_deps }}
+
+      - name: Add swap space
+        if: steps.check.outputs.exists != 'true' && (matrix.package == 'sageattention' || matrix.package == 'sageattn3')
+        run: |
+          sudo fallocate -l 6G /mnt/swapfile
+          sudo chmod 600 /mnt/swapfile
+          sudo mkswap /mnt/swapfile
+          sudo swapon /mnt/swapfile
 
       - name: Build wheel
         if: steps.check.outputs.exists != 'true'
@@ -195,12 +210,14 @@ jobs:
         id: meta
         shell: bash
         run: |
+          # Version detection is done in generate_matrix.py - just use matrix values
           PKG_NAME="${{ matrix.package }}"
           PKG_VERSION="${{ matrix.version }}"
           CUDA_SHORT="${{ matrix.cuda_short }}"
           TORCH_SHORT=$(echo "${{ matrix.pytorch }}" | cut -d. -f1,2)
           PY_SHORT=$(echo "${{ matrix.python }}" | tr -d '.')
           WHEEL_PREFIX="${PKG_NAME}-${PKG_VERSION}+cu${CUDA_SHORT}torch${TORCH_SHORT}-cp${PY_SHORT}-cp${PY_SHORT}-"
+
           echo "wheel_prefix=$WHEEL_PREFIX" >> $GITHUB_OUTPUT
           echo "pkg_name=$PKG_NAME" >> $GITHUB_OUTPUT
           echo "pkg_version=$PKG_VERSION" >> $GITHUB_OUTPUT
@@ -220,11 +237,11 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
             echo "::notice::Overwrite enabled, will rebuild"
           else
-            MATCHING=$({ gh release view "$RELEASE" --repo pollockjj/wheels --json assets -q ".assets[].name" 2>/dev/null || true; } | grep "^${WHEEL_PREFIX}" | grep "win_amd64" | head -1 || true)
+            MATCHING=$({ gh release view "$RELEASE" --json assets -q ".assets[].name" 2>/dev/null || true; } | grep -F "${WHEEL_PREFIX}" | grep "win_amd64" | head -1 || true)
             if [ -n "$MATCHING" ]; then
               echo "exists=true" >> $GITHUB_OUTPUT
               echo "::notice::Wheel exists in release: $MATCHING"
-              gh release download "$RELEASE" --repo pollockjj/wheels -p "$MATCHING" -D dist
+              gh release download "$RELEASE" -p "$MATCHING" -D dist
             else
               echo "exists=false" >> $GITHUB_OUTPUT
               echo "::notice::No win_amd64 wheel found matching: ${WHEEL_PREFIX}*"
@@ -292,13 +309,19 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Collect wheels and group by package
           mkdir -p wheels
           find artifacts -name "*.whl" -exec cp {} wheels/ \;
+
           echo "Collected wheels:"
           ls -la wheels/
+
+          # Extract unique package names from wheel filenames
+          # Wheel format: <package>-<version>+<suffix>-<python>-...
           cd wheels
           for whl in *.whl; do
             if [ -f "$whl" ]; then
+              # Extract package name (everything before first -)
               pkg=$(echo "$whl" | sed 's/-.*//')
               echo "Found package: $pkg"
               mkdir -p "../releases/$pkg"
@@ -306,14 +329,50 @@ jobs:
             fi
           done
           cd ..
+
+          # Create a release for each package
           for pkg_dir in releases/*/; do
             pkg=$(basename "$pkg_dir")
             echo "Creating release for: $pkg"
-            NOTES="Pre-built ${pkg} wheels with CUDA support."
+
+            NOTES="Pre-built ${pkg} wheels with CUDA support."$'\n\n'"**Install:**"$'\n'"\`\`\`bash"$'\n'"pip install ${pkg} --extra-index-url https://pollockjj.github.io/wheels"$'\n'"\`\`\`"
             gh release create "${pkg}-latest" \
-              --repo pollockjj/wheels \
               --title "${pkg} CUDA Wheels" \
               --notes "$NOTES" \
+              --latest=false \
               "$pkg_dir"/*.whl \
               2>/dev/null || \
-            gh release upload "${pkg}-latest" --repo pollockjj/wheels "$pkg_dir"/*.whl --clobber
+            gh release upload "${pkg}-latest" "$pkg_dir"/*.whl --clobber
+          done
+
+  update-index:
+    needs: release
+    if: always() && needs.release.result == 'success'
+    runs-on: ubuntu-latest
+    environment: deploy-index
+    permissions:
+      contents: write
+      pages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Generate PEP 503 index
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/generate_index.py
+
+      - name: Generate full build matrix page
+        run: python scripts/fetch_torch_matrix.py --output docs/matrix/matrix.json --html docs/matrix
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
+          force_orphan: true
