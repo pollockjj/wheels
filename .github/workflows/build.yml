@@ -1,6 +1,9 @@
 name: Build Wheels
 run-name: "Build ${{ inputs.package }} wheels${{ inputs.overwrite == true && ' (overwrite)' || '' }}"
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   workflow_dispatch:
     inputs:
