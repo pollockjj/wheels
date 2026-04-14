@@ -27,13 +27,15 @@ jobs:
       - name: Install actionlint
         run: |
           ACTIONLINT_VERSION_NO_V="${ACTIONLINT_VERSION#v}"
-          curl -fsSL -o actionlint.tar.gz https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION_NO_V}_linux_amd64.tar.gz
+          ACTIONLINT_URL="https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION_NO_V}_linux_amd64.tar.gz"
+          curl -fsSL -o actionlint.tar.gz "${ACTIONLINT_URL}"
           tar -xzf actionlint.tar.gz actionlint
           install -m 0755 actionlint /usr/local/bin/actionlint
 
       - name: Install shellcheck
         run: |
-          curl -fsSL -o shellcheck.tar.xz https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-v0.11.0.linux.x86_64.tar.xz
+          SHELLCHECK_URL="https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-v0.11.0.linux.x86_64.tar.xz"
+          curl -fsSL -o shellcheck.tar.xz "${SHELLCHECK_URL}"
           tar -xJf shellcheck.tar.xz
           install -m 0755 shellcheck-v0.11.0/shellcheck /usr/local/bin/shellcheck
 

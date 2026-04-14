@@ -65,12 +65,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          OVERWRITE_FLAG=""
           if [ "${{ inputs.overwrite }}" = "true" ]; then
-            OVERWRITE_FLAG="--overwrite"
+            python scripts/generate_matrix.py --package "${{ inputs.package }}" --platform "${{ inputs.platform || 'all' }}" --cuda "${{ inputs.cuda || 'all' }}" --output matrix.json --overwrite
+          else
+            python scripts/generate_matrix.py --package "${{ inputs.package }}" --platform "${{ inputs.platform || 'all' }}" --cuda "${{ inputs.cuda || 'all' }}" --output matrix.json
           fi
-          python scripts/generate_matrix.py --package "${{ inputs.package }}" --platform "${{ inputs.platform || 'all' }}" --cuda "${{ inputs.cuda || 'all' }}" --output matrix.json $OVERWRITE_FLAG
-          echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
+          echo "matrix=$(cat matrix.json)" >> "$GITHUB_OUTPUT"
 
   build-linux:
     name: Linux ${{ matrix.package }} py${{ matrix.python }} cu${{ matrix.cuda_short }} torch${{ matrix.pytorch }}
@@ -112,9 +112,11 @@ jobs:
           # Prefix without platform tag (auditwheel changes linux_x86_64 → manylinux_*)
           WHEEL_PREFIX="${PKG_NAME}-${PKG_VERSION}+cu${CUDA_SHORT}torch${TORCH_SHORT}-cp${PY_SHORT}-cp${PY_SHORT}-"
 
-          echo "wheel_prefix=$WHEEL_PREFIX" >> $GITHUB_OUTPUT
-          echo "pkg_name=$PKG_NAME" >> $GITHUB_OUTPUT
-          echo "pkg_version=$PKG_VERSION" >> $GITHUB_OUTPUT
+          {
+            echo "wheel_prefix=$WHEEL_PREFIX"
+            echo "pkg_name=$PKG_NAME"
+            echo "pkg_version=$PKG_VERSION"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Check if wheel exists in release
         id: check
@@ -127,17 +129,17 @@ jobs:
           mkdir -p dist
 
           if [ "${{ inputs.overwrite }}" = "true" ]; then
-            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "exists=false" >> "$GITHUB_OUTPUT"
             echo "::notice::Overwrite enabled, will rebuild"
           else
             # Require manylinux (auditwheel-repaired) wheels on Linux
             MATCHING=$({ gh release view "$RELEASE" --json assets -q ".assets[].name" 2>/dev/null || true; } | grep -F "${WHEEL_PREFIX}" | grep "manylinux" | head -1 || true)
             if [ -n "$MATCHING" ]; then
-              echo "exists=true" >> $GITHUB_OUTPUT
+              echo "exists=true" >> "$GITHUB_OUTPUT"
               echo "::notice::Wheel exists in release: $MATCHING"
               gh release download "$RELEASE" -p "$MATCHING" -D dist
             else
-              echo "exists=false" >> $GITHUB_OUTPUT
+              echo "exists=false" >> "$GITHUB_OUTPUT"
               echo "::notice::No manylinux wheel found matching: ${WHEEL_PREFIX}*"
             fi
           fi
@@ -221,9 +223,11 @@ jobs:
           PY_SHORT=$(echo "${{ matrix.python }}" | tr -d '.')
           WHEEL_PREFIX="${PKG_NAME}-${PKG_VERSION}+cu${CUDA_SHORT}torch${TORCH_SHORT}-cp${PY_SHORT}-cp${PY_SHORT}-"
 
-          echo "wheel_prefix=$WHEEL_PREFIX" >> $GITHUB_OUTPUT
-          echo "pkg_name=$PKG_NAME" >> $GITHUB_OUTPUT
-          echo "pkg_version=$PKG_VERSION" >> $GITHUB_OUTPUT
+          {
+            echo "wheel_prefix=$WHEEL_PREFIX"
+            echo "pkg_name=$PKG_NAME"
+            echo "pkg_version=$PKG_VERSION"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Check if wheel exists in release
         id: check
@@ -237,16 +241,16 @@ jobs:
           mkdir -p dist
 
           if [ "${{ inputs.overwrite }}" = "true" ]; then
-            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "exists=false" >> "$GITHUB_OUTPUT"
             echo "::notice::Overwrite enabled, will rebuild"
           else
             MATCHING=$({ gh release view "$RELEASE" --json assets -q ".assets[].name" 2>/dev/null || true; } | grep -F "${WHEEL_PREFIX}" | grep "win_amd64" | head -1 || true)
             if [ -n "$MATCHING" ]; then
-              echo "exists=true" >> $GITHUB_OUTPUT
+              echo "exists=true" >> "$GITHUB_OUTPUT"
               echo "::notice::Wheel exists in release: $MATCHING"
               gh release download "$RELEASE" -p "$MATCHING" -D dist
             else
-              echo "exists=false" >> $GITHUB_OUTPUT
+              echo "exists=false" >> "$GITHUB_OUTPUT"
               echo "::notice::No win_amd64 wheel found matching: ${WHEEL_PREFIX}*"
             fi
           fi
@@ -322,9 +326,11 @@ jobs:
           PY_SHORT=$(echo "${{ matrix.python }}" | tr -d '.')
           WHEEL_PREFIX="${PKG_NAME}-${PKG_VERSION}+cu${CUDA_SHORT}torch${TORCH_SHORT}-cp${PY_SHORT}-cp${PY_SHORT}-"
 
-          echo "wheel_prefix=$WHEEL_PREFIX" >> $GITHUB_OUTPUT
-          echo "pkg_name=$PKG_NAME" >> $GITHUB_OUTPUT
-          echo "pkg_version=$PKG_VERSION" >> $GITHUB_OUTPUT
+          {
+            echo "wheel_prefix=$WHEEL_PREFIX"
+            echo "pkg_name=$PKG_NAME"
+            echo "pkg_version=$PKG_VERSION"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Check if wheel exists in release
         id: check
@@ -338,16 +344,16 @@ jobs:
           mkdir -p dist
 
           if [ "${{ inputs.overwrite }}" = "true" ]; then
-            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "exists=false" >> "$GITHUB_OUTPUT"
             echo "::notice::Overwrite enabled, will rebuild"
           else
             MATCHING=$({ gh release view "$RELEASE" --json assets -q ".assets[].name" 2>/dev/null || true; } | grep -F "${WHEEL_PREFIX}" | grep "win_amd64" | head -1 || true)
             if [ -n "$MATCHING" ]; then
-              echo "exists=true" >> $GITHUB_OUTPUT
+              echo "exists=true" >> "$GITHUB_OUTPUT"
               echo "::notice::Wheel exists in release: $MATCHING"
               gh release download "$RELEASE" -p "$MATCHING" -D dist
             else
-              echo "exists=false" >> $GITHUB_OUTPUT
+              echo "exists=false" >> "$GITHUB_OUTPUT"
               echo "::notice::No win_amd64 wheel found matching: ${WHEEL_PREFIX}*"
             fi
           fi
@@ -415,7 +421,7 @@ jobs:
         run: |
           # Collect wheels and group by package
           mkdir -p wheels
-          find artifacts -name "*.whl" -exec cp {} wheels/ \;
+          find artifacts -name "*.whl" -exec cp "{}" "wheels/" \;
 
           echo "Collected wheels:"
           ls -la wheels/
@@ -426,7 +432,7 @@ jobs:
           for whl in *.whl; do
             if [ -f "$whl" ]; then
               # Extract package name (everything before first -)
-              pkg=$(echo "$whl" | sed 's/-.*//')
+              pkg="${whl%%-*}"
               echo "Found package: $pkg"
               mkdir -p "../releases/$pkg"
               cp "$whl" "../releases/$pkg/"
