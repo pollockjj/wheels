@@ -1,0 +1,69 @@
+name: Inspect All Wheels
+run-name: "Inspect wheels: ${{ inputs.package }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "Package release to inspect"
+        required: true
+        type: choice
+        options:
+          - sageattention
+          - flash_attn
+          - sageattn3
+          - cc_torch
+          - torch_generic_nms
+
+jobs:
+  inspect:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      attestations: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: Download release wheels
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p audit-wheels
+          gh release download "${{ inputs.package }}-latest" --repo "${{ github.repository }}" -p "*.whl" -D audit-wheels
+
+      - name: Install syft
+        run: |
+          curl -fsSL -o syft.tar.gz https://github.com/anchore/syft/releases/download/v1.42.4/syft_1.42.4_linux_amd64.tar.gz
+          tar -xzf syft.tar.gz syft
+          install -m 0755 syft /usr/local/bin/syft
+
+      - name: Inspect wheels
+        run: |
+          python scripts/inspect_all_wheels.py --wheel-dir audit-wheels --output-json inspection_report.json --output-md inspection_report.md
+          sha256sum audit-wheels/*.whl > SHA256SUMS.txt
+          syft audit-wheels -o cyclonedx-json=sbom_manifest.json
+
+      - name: Upload audit artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: wheel-audit-${{ inputs.package }}
+          path: |
+            SHA256SUMS.txt
+            sbom_manifest.json
+            inspection_report.json
+            inspection_report.md
+
+      - name: Attest audit artifact set
+        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+        with:
+          subject-path: |
+            SHA256SUMS.txt
+            sbom_manifest.json
+            inspection_report.json
+            inspection_report.md
