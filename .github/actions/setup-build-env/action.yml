@@ -28,7 +28,7 @@ runs:
   using: 'composite'
   steps:
     - name: Setup Python ${{ inputs.python-version }}
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
       with:
         python-version: ${{ inputs.python-version }}
 
@@ -36,7 +36,7 @@ runs:
     - name: Restore uv cache (Linux)
       if: inputs.platform == 'linux'
       id: uv-cache-linux
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ~/.cache/uv
         key: uv-linux-cu${{ inputs.cuda-short }}-torch${{ inputs.pytorch-version }}
@@ -54,7 +54,7 @@ runs:
         inputs.platform == 'linux' && steps.uv-cache-linux.outputs.cache-hit != 'true' &&
         ((inputs.cuda-short == '124' && inputs.pytorch-version == '2.4.0') ||
          (inputs.cuda-short == '128' && inputs.pytorch-version == '2.8.0'))
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ~/.cache/uv
         key: uv-linux-cu${{ inputs.cuda-short }}-torch${{ inputs.pytorch-version }}
@@ -63,7 +63,7 @@ runs:
     - name: Restore uv cache (Windows)
       if: inputs.platform == 'windows'
       id: uv-cache-windows
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ~\AppData\Local\uv\cache
         key: uv-windows-cu${{ inputs.cuda-short }}-torch${{ inputs.pytorch-version }}
@@ -97,7 +97,7 @@ runs:
         inputs.platform == 'windows' && steps.uv-cache-windows.outputs.cache-hit != 'true' &&
         ((inputs.cuda-short == '124' && inputs.pytorch-version == '2.4.0') ||
          (inputs.cuda-short == '128' && inputs.pytorch-version == '2.8.0'))
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ~\AppData\Local\uv\cache
         key: uv-windows-cu${{ inputs.cuda-short }}-torch${{ inputs.pytorch-version }}
