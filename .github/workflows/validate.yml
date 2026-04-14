@@ -26,7 +26,8 @@ jobs:
 
       - name: Install actionlint
         run: |
-          curl -fsSL -o actionlint.tar.gz https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint-1.7.12-linux-amd64.tar.gz
+          ACTIONLINT_VERSION_NO_V="${ACTIONLINT_VERSION#v}"
+          curl -fsSL -o actionlint.tar.gz https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION_NO_V}_linux_amd64.tar.gz
           tar -xzf actionlint.tar.gz actionlint
           install -m 0755 actionlint /usr/local/bin/actionlint
 
