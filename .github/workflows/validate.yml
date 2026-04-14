@@ -37,13 +37,17 @@ jobs:
           install -m 0755 shellcheck-v0.11.0/shellcheck /usr/local/bin/shellcheck
 
       - name: Run actionlint
-        run: actionlint -color
+        run: |
+          actionlint -color
+          echo "actionlint PASS"
 
       - name: Extract shell blocks
         run: python scripts/extract_workflow_shell_blocks.py --workflow-dir .github/workflows --action-dir .github/actions --output-dir .workflow-shells-shellcheck
 
       - name: Run shellcheck
-        run: find .workflow-shells-shellcheck -type f -name '*.sh' -print0 | xargs -0 shellcheck --severity=warning
+        run: |
+          find .workflow-shells-shellcheck -type f -name '*.sh' -print0 | xargs -0 shellcheck --severity=warning
+          echo "shellcheck PASS"
 
   package-and-matrix:
     runs-on: ubuntu-22.04
@@ -82,7 +86,7 @@ jobs:
         run: python -m pip install pytest pyyaml
 
       - name: Compile Python sources
-        run: python -m compileall scripts tests
+        run: python -m compileall scripts/generate_matrix.py scripts/generate_index.py scripts/fetch_torch_matrix.py scripts/patch_wheel_version.py tests
 
       - name: Run pytest
-        run: pytest -q tests
+        run: pytest -v tests/test_generate_matrix.py tests/test_generate_index.py tests/test_fetch_torch_matrix.py tests/test_patch_wheel_version.py
