@@ -1,0 +1,8 @@
+.tools/
+.workflow-shells/
+.workflow-shells-shellcheck/
+.audit-work/
+matrix.json
+scripts/__pycache__/
+tests/__pycache__/
+tests/_tmp/
