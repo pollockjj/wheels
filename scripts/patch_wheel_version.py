@@ -76,7 +76,10 @@ def fix_wheel(wheel_path: Path) -> bool:
     if "+" not in version:
         return False
 
-    with tempfile.TemporaryDirectory() as tmpdir:
+    tmp_root = wheel_path.parent / ".wheel-fix-tmp"
+    tmp_root.mkdir(exist_ok=True)
+
+    with tempfile.TemporaryDirectory(dir=tmp_root, prefix="work-") as tmpdir:
         tmpdir = Path(tmpdir)
 
         with zipfile.ZipFile(wheel_path, "r") as zf:

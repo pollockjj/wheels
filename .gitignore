@@ -1,1 +1,7 @@
-docs/
+.tools/
+.workflow-shells/
+.workflow-shells-shellcheck/
+matrix.json
+scripts/__pycache__/
+tests/__pycache__/
+tests/_tmp/

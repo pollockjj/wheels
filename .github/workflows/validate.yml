@@ -1,0 +1,88 @@
+name: Validate Repository
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  ACTIONLINT_VERSION: v1.7.12
+  SHELLCHECK_VERSION: v0.11.0
+
+jobs:
+  workflow-lint:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PyYAML
+        run: python -m pip install pyyaml
+
+      - name: Install actionlint
+        run: |
+          curl -fsSL -o actionlint.tar.gz https://github.com/rhysd/actionlint/releases/download/${ACTIONLINT_VERSION}/actionlint-1.7.12-linux-amd64.tar.gz
+          tar -xzf actionlint.tar.gz actionlint
+          install -m 0755 actionlint /usr/local/bin/actionlint
+
+      - name: Install shellcheck
+        run: |
+          curl -fsSL -o shellcheck.tar.xz https://github.com/koalaman/shellcheck/releases/download/${SHELLCHECK_VERSION}/shellcheck-v0.11.0.linux.x86_64.tar.xz
+          tar -xJf shellcheck.tar.xz
+          install -m 0755 shellcheck-v0.11.0/shellcheck /usr/local/bin/shellcheck
+
+      - name: Run actionlint
+        run: actionlint -color
+
+      - name: Extract shell blocks
+        run: python scripts/extract_workflow_shell_blocks.py --workflow-dir .github/workflows --action-dir .github/actions --output-dir .workflow-shells-shellcheck
+
+      - name: Run shellcheck
+        run: find .workflow-shells-shellcheck -type f -name '*.sh' -print0 | xargs -0 shellcheck --severity=warning
+
+  package-and-matrix:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: python -m pip install pyyaml
+
+      - name: Validate package specs
+        run: python scripts/validate_package_specs.py --packages-dir packages
+
+      - name: Generate matrix smoke test
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/generate_matrix.py --package all --platform all --cuda all --overwrite --output matrix.json
+          python -c "import json, pathlib; data=json.loads(pathlib.Path('matrix.json').read_text()); assert data['linux']['include']; assert 'windows_github' in data; assert 'windows_selfhosted' in data"
+
+  python-checks:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: python -m pip install pytest pyyaml
+
+      - name: Compile Python sources
+        run: python -m compileall scripts tests
+
+      - name: Run pytest
+        run: pytest -q tests
