@@ -283,7 +283,6 @@ def main():
     output = {
         "linux": {"include": linux_jobs},
         "windows_github": {"include": windows_jobs},
-        "windows_selfhosted": {"include": []},
     }
 
     with open(args.output, "w") as f:
