@@ -73,7 +73,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           python scripts/generate_matrix.py --package all --platform all --cuda all --overwrite --output matrix.json
-          python -c "import json, pathlib; data=json.loads(pathlib.Path('matrix.json').read_text()); assert data['linux']['include']; assert 'windows_github' in data; assert 'windows_selfhosted' in data"
+          python -c "import json, pathlib; data=json.loads(pathlib.Path('matrix.json').read_text()); assert data['linux']['include']; assert 'windows_github' in data; assert 'windows_selfhosted' not in data"
 
   python-checks:
     runs-on: ubuntu-22.04
