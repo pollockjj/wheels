@@ -21,7 +21,7 @@ def test_get_releases_uses_github_api(monkeypatch) -> None:
     payload = [{"tag_name": "demo"}]
     monkeypatch.setattr(generate_index.urllib.request, "urlopen", lambda request: _Response(payload))
 
-    releases = generate_index.get_releases("pollockjj/wheels", token="abc123")
+    releases = generate_index.get_releases("Example-Owner/wheels", token="abc123")
 
     assert releases == payload
 
