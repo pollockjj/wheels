@@ -26,7 +26,7 @@ def get_releases(repo: str, token: str = None) -> list:
 
 def main():
     token = os.environ.get("GITHUB_TOKEN")
-    repo = os.environ.get("GITHUB_REPOSITORY", "PozzettiAndrea/cuda-wheels")
+    repo = os.environ["GITHUB_REPOSITORY"]
 
     print(f"Generating index for {repo}")
 

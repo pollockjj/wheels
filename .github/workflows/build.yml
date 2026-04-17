@@ -342,7 +342,7 @@ jobs:
             pkg=$(basename "$pkg_dir")
             echo "Creating release for: $pkg"
 
-            NOTES="Pre-built ${pkg} wheels with CUDA support."$'\n\n'"**Install:**"$'\n'"\`\`\`bash"$'\n'"pip install ${pkg} --extra-index-url https://pollockjj.github.io/wheels"$'\n'"\`\`\`"
+            NOTES="Pre-built ${pkg} wheels with CUDA support."$'\n\n'"**Install:**"$'\n'"\`\`\`bash"$'\n'"pip install ${pkg} --extra-index-url https://$(printf '%s' "${GITHUB_REPOSITORY%%/*}" | tr '[:upper:]' '[:lower:]').github.io/${GITHUB_REPOSITORY#*/}"$'\n'"\`\`\`"
             gh release create "${pkg}-latest" \
               --title "${pkg} CUDA Wheels" \
               --notes "$NOTES" \

@@ -15,7 +15,7 @@ Pre-built CUDA Python wheels for packages used by ComfyUI custom nodes. Spec-dri
 ## Building a wheel
 
 1. Ensure a package spec exists in `packages/<name>.yml`
-2. Run: `gh workflow run build.yml --repo pollockjj/wheels -f package=<name>`
+2. Run: `gh workflow run build.yml --repo <owner>/wheels -f package=<name>`
 3. Download the wheel from the GitHub release
 
 ## Package index
