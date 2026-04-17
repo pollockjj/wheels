@@ -1,4 +1,7 @@
 import json
+import importlib.util
+import sys
+from pathlib import Path
 
 from scripts import generate_index
 
@@ -21,7 +24,7 @@ def test_get_releases_uses_github_api(monkeypatch) -> None:
     payload = [{"tag_name": "demo"}]
     monkeypatch.setattr(generate_index.urllib.request, "urlopen", lambda request: _Response(payload))
 
-    releases = generate_index.get_releases("pollockjj/wheels", token="abc123")
+    releases = generate_index.get_releases("Example-Owner/wheels", token="abc123")
 
     assert releases == payload
 
@@ -33,3 +36,36 @@ def test_v2_torch_name_regex_converts_display_name() -> None:
     )
 
     assert converted == "flash_attn-2.8.3+cu128torch29-cp312-cp312-manylinux_2_35_x86_64.whl"
+
+
+def test_main_uses_repository_context(monkeypatch, tmp_path) -> None:
+    seen: dict[str, str | None] = {"repo": None}
+
+    def fake_get_releases(repo: str, token: str = None) -> list:
+        seen["repo"] = repo
+        return []
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GITHUB_REPOSITORY", "Example-Owner/wheels")
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.setattr(generate_index, "get_releases", fake_get_releases)
+
+    generate_index.main()
+
+    assert seen["repo"] == "Example-Owner/wheels"
+
+
+def test_generate_index_imports_when_loaded_from_scripts_dir(monkeypatch) -> None:
+    script_path = Path(__file__).resolve().parent.parent / "scripts" / "generate_index.py"
+    script_dir = str(script_path.parent)
+    original_path = sys.path[:]
+
+    monkeypatch.setattr(sys, "path", [script_dir] + [entry for entry in original_path if entry != script_dir])
+
+    spec = importlib.util.spec_from_file_location("generate_index_script", script_path)
+    module = importlib.util.module_from_spec(spec)
+
+    assert spec is not None
+    assert spec.loader is not None
+
+    spec.loader.exec_module(module)
