@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Generate PEP 503 compliant package index from GitHub releases + external wheels."""
+from __future__ import annotations
+
 import os
 import json
 import re
 import shutil
+import sys
 import urllib.request
 from pathlib import Path
 from urllib.parse import quote
@@ -31,7 +34,11 @@ def get_releases(repo: str, token: str = None) -> list:
 
 def main():
     token = os.environ.get("GITHUB_TOKEN")
-    repo = resolve_release_repo()
+    try:
+        repo = resolve_release_repo()
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
 
     print(f"Generating index for {repo}")
 
@@ -177,6 +184,8 @@ def main():
     except Exception as e:
         print(f"Dashboard generation failed (non-fatal): {e}")
 
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

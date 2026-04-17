@@ -1,5 +1,7 @@
 import json
 import importlib.util
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -41,7 +43,7 @@ def test_v2_torch_name_regex_converts_display_name() -> None:
 def test_main_uses_repository_context(monkeypatch, tmp_path) -> None:
     seen: dict[str, str | None] = {"repo": None}
 
-    def fake_get_releases(repo: str, token: str = None) -> list:
+    def fake_get_releases(repo: str, token: str | None = None) -> list:
         seen["repo"] = repo
         return []
 
@@ -69,3 +71,21 @@ def test_generate_index_imports_when_loaded_from_scripts_dir(monkeypatch) -> Non
     assert spec.loader is not None
 
     spec.loader.exec_module(module)
+
+
+def test_generate_index_script_fails_cleanly_without_repository_context(tmp_path) -> None:
+    script_path = Path(__file__).resolve().parent.parent / "scripts" / "generate_index.py"
+    env = os.environ.copy()
+    env.pop("GITHUB_REPOSITORY", None)
+
+    result = subprocess.run(
+        [sys.executable, str(script_path)],
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=tmp_path,
+        env=env,
+    )
+
+    assert result.returncode == 2
+    assert "GITHUB_REPOSITORY is required" in result.stderr
