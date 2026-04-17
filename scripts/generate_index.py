@@ -8,7 +8,10 @@ import urllib.request
 from pathlib import Path
 from urllib.parse import quote
 
-from scripts.release_target import resolve_release_repo
+try:
+    from scripts.release_target import resolve_release_repo
+except ModuleNotFoundError:
+    from release_target import resolve_release_repo
 
 # Matches v2 torch naming: +cu128torch2.9-cp (dot between major.minor)
 _V2_TORCH_RE = re.compile(r'(\+cu\d+torch)(\d)\.(\d+)(-cp)')

@@ -1,4 +1,7 @@
 import json
+import importlib.util
+import sys
+from pathlib import Path
 
 from scripts import generate_index
 
@@ -50,3 +53,19 @@ def test_main_uses_repository_context(monkeypatch, tmp_path) -> None:
     generate_index.main()
 
     assert seen["repo"] == "Example-Owner/wheels"
+
+
+def test_generate_index_imports_when_loaded_from_scripts_dir(monkeypatch) -> None:
+    script_path = Path(__file__).resolve().parent.parent / "scripts" / "generate_index.py"
+    script_dir = str(script_path.parent)
+    original_path = sys.path[:]
+
+    monkeypatch.setattr(sys, "path", [script_dir] + [entry for entry in original_path if entry != script_dir])
+
+    spec = importlib.util.spec_from_file_location("generate_index_script", script_path)
+    module = importlib.util.module_from_spec(spec)
+
+    assert spec is not None
+    assert spec.loader is not None
+
+    spec.loader.exec_module(module)
