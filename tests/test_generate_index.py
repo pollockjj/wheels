@@ -33,3 +33,20 @@ def test_v2_torch_name_regex_converts_display_name() -> None:
     )
 
     assert converted == "flash_attn-2.8.3+cu128torch29-cp312-cp312-manylinux_2_35_x86_64.whl"
+
+
+def test_main_uses_repository_context(monkeypatch, tmp_path) -> None:
+    seen: dict[str, str | None] = {"repo": None}
+
+    def fake_get_releases(repo: str, token: str = None) -> list:
+        seen["repo"] = repo
+        return []
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GITHUB_REPOSITORY", "Example-Owner/wheels")
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.setattr(generate_index, "get_releases", fake_get_releases)
+
+    generate_index.main()
+
+    assert seen["repo"] == "Example-Owner/wheels"

@@ -341,8 +341,9 @@ jobs:
           for pkg_dir in releases/*/; do
             pkg=$(basename "$pkg_dir")
             echo "Creating release for: $pkg"
+            INDEX_URL=$(python scripts/release_target.py --format index-url)
 
-            NOTES="Pre-built ${pkg} wheels with CUDA support."$'\n\n'"**Install:**"$'\n'"\`\`\`bash"$'\n'"pip install ${pkg} --extra-index-url https://$(printf '%s' "${GITHUB_REPOSITORY%%/*}" | tr '[:upper:]' '[:lower:]').github.io/${GITHUB_REPOSITORY#*/}"$'\n'"\`\`\`"
+            NOTES="Pre-built ${pkg} wheels with CUDA support."$'\n\n'"**Install:**"$'\n'"\`\`\`bash"$'\n'"pip install ${pkg} --extra-index-url ${INDEX_URL}"$'\n'"\`\`\`"
             gh release create "${pkg}-latest" \
               --title "${pkg} CUDA Wheels" \
               --notes "$NOTES" \

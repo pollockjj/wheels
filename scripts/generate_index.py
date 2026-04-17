@@ -8,6 +8,8 @@ import urllib.request
 from pathlib import Path
 from urllib.parse import quote
 
+from scripts.release_target import resolve_release_repo
+
 # Matches v2 torch naming: +cu128torch2.9-cp (dot between major.minor)
 _V2_TORCH_RE = re.compile(r'(\+cu\d+torch)(\d)\.(\d+)(-cp)')
 
@@ -26,7 +28,7 @@ def get_releases(repo: str, token: str = None) -> list:
 
 def main():
     token = os.environ.get("GITHUB_TOKEN")
-    repo = os.environ["GITHUB_REPOSITORY"]
+    repo = resolve_release_repo()
 
     print(f"Generating index for {repo}")
 
