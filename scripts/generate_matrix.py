@@ -276,16 +276,13 @@ def main():
     matrix = generate_matrix(args.package, overwrite=args.overwrite,
                             platform_filter=args.platform, cuda_filter=args.cuda)
 
-    # Split by platform and runner class
+    # Split by platform — all Windows builds use GitHub-hosted runners
     linux_jobs = [j for j in matrix if j["platform"] == "linux"]
     windows_jobs = [j for j in matrix if j["platform"] == "windows"]
-    windows_github_jobs = [j for j in windows_jobs if j["package"] == "sageattention"]
-    windows_selfhosted_jobs = [j for j in windows_jobs if j["package"] != "sageattention"]
 
     output = {
         "linux": {"include": linux_jobs},
-        "windows_github": {"include": windows_github_jobs},
-        "windows_selfhosted": {"include": windows_selfhosted_jobs},
+        "windows_github": {"include": windows_jobs},
     }
 
     with open(args.output, "w") as f:
@@ -294,8 +291,7 @@ def main():
 
     print(
         f"Generated {len(matrix)} build jobs "
-        f"({len(linux_jobs)} Linux, {len(windows_github_jobs)} Windows GitHub-hosted, "
-        f"{len(windows_selfhosted_jobs)} Windows self-hosted)"
+        f"({len(linux_jobs)} Linux, {len(windows_jobs)} Windows GitHub-hosted)"
     )
 
     # Also print to stdout for debugging
