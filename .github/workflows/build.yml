@@ -76,7 +76,7 @@ jobs:
   build-linux:
     name: Linux ${{ matrix.package }} py${{ matrix.python }} cu${{ matrix.cuda_short }} torch${{ matrix.pytorch }}
     needs: generate-matrix
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.runs_on }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix).linux }}

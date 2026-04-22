@@ -256,6 +256,7 @@ def generate_matrix(package_filter: str, overwrite: bool = False,
                         "build_subdir": pkg.get("build_subdir", ""),
                         "cuda_installer": pkg.get("cuda_installer", "network"),
                         "extra_cuda_components": pkg.get("extra_cuda_components", ""),
+                        "runs_on": pkg.get("linux_runs_on", "ubuntu-22.04") if platform == "linux" else "windows-2022",
                     })
 
     if skipped > 0:
