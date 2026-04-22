@@ -20,7 +20,12 @@ Pre-built CUDA Python wheels for packages used by ComfyUI custom nodes. Spec-dri
 
 ## Package index
 
-Wheels are served via PEP 503 index at the GitHub Pages URL for this repository.
+Wheels are served via PEP 503 index at:
+
+- `https://comfy-org.github.io/wheels/`
+- `https://comfy-org.github.io/wheels/v2/`
+
+GitHub Pages is published from the `gh-pages` branch by the `update-index` job after successful wheel releases, or by manually running `update-index.yml`.
 
 ## Adding a package
 
