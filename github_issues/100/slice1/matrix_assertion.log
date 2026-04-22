@@ -1,0 +1,10 @@
+linux.include length:
+1
+linux[0].package:
+"flash_attn_3"
+linux[0].build_subdir:
+"hopper"
+linux[0].platform:
+"linux"
+windows_github.include length:
+0

@@ -1,0 +1,5 @@
+Detected version 3.0.0 for flash_attn_3
+Overwrite enabled, skipping existing wheel check for flash_attn_3
+Generated 1 build jobs (1 Linux, 0 Windows GitHub-hosted)
+  - flash_attn_3 py3.9 cu126 linux
+EXIT=0

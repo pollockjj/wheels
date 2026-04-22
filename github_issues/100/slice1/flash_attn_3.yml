@@ -1,0 +1,23 @@
+name: flash_attn_3
+source_repo: Dao-AILab/flash-attention
+source_tag: 3a7694c04748e3ba1cd954eb5dfdfd4b6646a234
+version: "3.0.0"
+
+# Build from the hopper/ subdirectory (FlashAttention-3)
+build_subdir: hopper
+
+# FA3 default kernels: SM80 (Ampere) + SM90a (Hopper)
+arch_list: "8.0 9.0"
+
+free_disk_space: true
+clone_recursive: false
+max_jobs: 1
+
+extra_deps: "einops psutil"
+
+build_matrix:
+  combinations:
+    - cuda: "12.6"
+      pytorch: "2.7.0"
+      python_versions: ["3.9"]
+  platforms: ["linux"]
