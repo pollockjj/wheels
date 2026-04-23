@@ -1,5 +1,5 @@
-name: Benchmark FlashAttention Linux Runners
-run-name: Benchmark flash_attn on all three Linux runners
+name: Benchmark Flash3 Linux Runners
+run-name: Benchmark flash_attn_3 on all three Linux runners
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -11,7 +11,7 @@ on:
 
 jobs:
   build-linux:
-    name: flash_attn slot ${{ matrix.slot }}
+    name: flash_attn_3 slot ${{ matrix.slot }}
     runs-on: [self-hosted, Linux, X64, fa3-builder]
     env:
       TMPDIR: /opt/runner/_work/_temp
@@ -54,28 +54,28 @@ jobs:
       - name: Setup build environment
         uses: ./.github/actions/setup-build-env
         with:
-          python-version: "3.10"
-          pytorch-version: "2.8.0"
+          python-version: "3.9"
+          pytorch-version: "2.7.0"
           cuda-short: "126"
           platform: linux
-          extra-deps: psutil
+          extra-deps: einops psutil
           github-cache: "false"
 
       - name: Build wheel
         uses: ./.github/actions/build-wheel
         with:
           source-repo: Dao-AILab/flash-attention
-          source-tag: v2.8.3
+          source-tag: 3a7694c04748e3ba1cd954eb5dfdfd4b6646a234
           pre-build-script: ""
           arch-list: "8.0 9.0"
           cuda-version: "12.6"
           cuda-short: "126"
-          pytorch-version: "2.8.0"
+          pytorch-version: "2.7.0"
           platform: linux
           max-jobs: auto
           clone-recursive: false
-          patch-script: patches/flash_attn.py
-          build-subdir: ""
+          patch-script: ""
+          build-subdir: hopper
 
       - name: Capture local cache usage
         shell: bash
@@ -90,7 +90,7 @@ jobs:
       - name: Upload benchmark artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: flash-attn-benchmark-slot-${{ matrix.slot }}
+          name: flash-attn-3-benchmark-slot-${{ matrix.slot }}
           path: |
             dist/*.whl
             benchmark-info/*.txt
