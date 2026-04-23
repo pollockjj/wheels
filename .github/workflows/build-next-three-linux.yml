@@ -12,6 +12,10 @@ jobs:
   build-linux:
     name: Linux ${{ matrix.package }} py${{ matrix.python }} cu${{ matrix.cuda_short }} torch${{ matrix.pytorch }}
     runs-on: [self-hosted, Linux, X64, fa3-builder]
+    env:
+      TMPDIR: ${{ runner.temp }}
+      TMP: ${{ runner.temp }}
+      TEMP: ${{ runner.temp }}
     strategy:
       fail-fast: false
       matrix:
