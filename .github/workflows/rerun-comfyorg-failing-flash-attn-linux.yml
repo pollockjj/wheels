@@ -1,5 +1,5 @@
 name: Rerun ComfyOrg Failing FlashAttn Linux Tuples
-run-name: Rerun failing ComfyOrg Linux flash_attn tuples on prosoche and llamatron
+run-name: Rerun failing ComfyOrg Linux flash_attn tuples on prosoche
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -16,7 +16,7 @@ on:
 jobs:
   build-linux:
     name: linux flash_attn py${{ matrix.python }} cu${{ matrix.cuda_short }} torch${{ matrix.pytorch }}
-    runs-on: [self-hosted, Linux, X64, fa3-builder, comfyorg-fa-rerun]
+    runs-on: [self-hosted, Linux, X64, fa3-builder, comfyorg-fa-rerun-prosoche]
     env:
       TMPDIR: /opt/runner/_work/_temp
       TMP: /opt/runner/_work/_temp
@@ -129,20 +129,25 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Confirm runner and tuple
+        id: runner
         shell: bash
         run: |
           mkdir -p benchmark-info
           case "${RUNNER_NAME:-$(hostname)}" in
-            prosoche-fa3|prosoche*) EXPECTED_MAX_JOBS=16 ;;
-            llamatron-fa3|llamatron*) EXPECTED_MAX_JOBS=8 ;;
+            prosoche-fa3|prosoche*)
+              EXPECTED_MAX_JOBS=16
+              CONFIGURED_MAX_JOBS=8
+              ;;
             *)
               echo "::error::Unexpected runner ${RUNNER_NAME:-$(hostname)}"
               exit 1
               ;;
           esac
+          echo "configured_max_jobs=$CONFIGURED_MAX_JOBS" >> "$GITHUB_OUTPUT"
           {
             echo "RUNNER_NAME=${RUNNER_NAME:-$(hostname)}"
             echo "EXPECTED_MAX_JOBS=$EXPECTED_MAX_JOBS"
+            echo "CONFIGURED_MAX_JOBS=$CONFIGURED_MAX_JOBS"
             echo "PYTHON=${{ matrix.python }}"
             echo "CUDA=${{ matrix.cuda }}"
             echo "CUDA_SHORT=${{ matrix.cuda_short }}"
@@ -179,7 +184,7 @@ jobs:
           cuda-short: ${{ matrix.cuda_short }}
           pytorch-version: ${{ matrix.pytorch }}
           platform: linux
-          max-jobs: auto
+          max-jobs: ${{ steps.runner.outputs.configured_max_jobs }}
           clone-recursive: false
           patch-script: patches/flash_attn.py
           build-subdir: ""
