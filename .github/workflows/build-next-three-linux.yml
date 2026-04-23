@@ -1,0 +1,256 @@
+name: Build Next Three Linux Wheels
+run-name: Build next three Linux wheels
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  UV_LINK_MODE: copy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    name: Linux ${{ matrix.package }} py${{ matrix.python }} cu${{ matrix.cuda_short }} torch${{ matrix.pytorch }}
+    runs-on: [self-hosted, Linux, X64, fa3-builder]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: flash_attn
+            version: "2.8.3"
+            source_repo: Dao-AILab/flash-attention
+            source_tag: v2.8.3
+            cuda: "12.4"
+            cuda_short: "124"
+            pytorch: "2.4.0"
+            python: "3.10"
+            platform: linux
+            arch_list: "8.0 9.0"
+            extra_deps: "psutil"
+            pre_build_script: ""
+            free_disk_space: true
+            max_jobs: 6
+            clone_recursive: false
+            patch_script: patches/flash_attn.py
+            build_subdir: ""
+            cuda_installer: network
+            extra_cuda_components: ""
+          - package: flash_attn
+            version: "2.8.3"
+            source_repo: Dao-AILab/flash-attention
+            source_tag: v2.8.3
+            cuda: "12.4"
+            cuda_short: "124"
+            pytorch: "2.4.0"
+            python: "3.11"
+            platform: linux
+            arch_list: "8.0 9.0"
+            extra_deps: "psutil"
+            pre_build_script: ""
+            free_disk_space: true
+            max_jobs: 6
+            clone_recursive: false
+            patch_script: patches/flash_attn.py
+            build_subdir: ""
+            cuda_installer: network
+            extra_cuda_components: ""
+          - package: flash_attn
+            version: "2.8.3"
+            source_repo: Dao-AILab/flash-attention
+            source_tag: v2.8.3
+            cuda: "12.4"
+            cuda_short: "124"
+            pytorch: "2.4.0"
+            python: "3.12"
+            platform: linux
+            arch_list: "8.0 9.0"
+            extra_deps: "psutil"
+            pre_build_script: ""
+            free_disk_space: true
+            max_jobs: 6
+            clone_recursive: false
+            patch_script: patches/flash_attn.py
+            build_subdir: ""
+            cuda_installer: network
+            extra_cuda_components: ""
+    permissions:
+      contents: read
+
+    steps:
+      - name: Free disk space
+        if: matrix.free_disk_space == true
+        run: |
+          sudo rm -rf /usr/share/dotnet &
+          sudo rm -rf /usr/local/lib/android &
+          sudo rm -rf /opt/ghc &
+          sudo rm -rf /opt/hostedtoolcache/CodeQL &
+          sudo rm -rf /usr/share/swift &
+          sudo rm -rf /usr/local/graalvm &
+          sudo rm -rf /usr/local/.ghcup &
+          sudo rm -rf /opt/hostedtoolcache/go &
+          sudo apt-get clean &
+          wait
+          df -h
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Compute wheel filename
+        id: meta
+        run: |
+          PKG_NAME="${{ matrix.package }}"
+          PKG_VERSION="${{ matrix.version }}"
+          CUDA_SHORT="${{ matrix.cuda_short }}"
+          TORCH_SHORT=$(echo "${{ matrix.pytorch }}" | cut -d. -f1,2)
+          PY_SHORT=$(echo "${{ matrix.python }}" | tr -d '.')
+          WHEEL_PREFIX="${PKG_NAME}-${PKG_VERSION}+cu${CUDA_SHORT}torch${TORCH_SHORT}-cp${PY_SHORT}-cp${PY_SHORT}-"
+
+          {
+            echo "wheel_prefix=$WHEEL_PREFIX"
+            echo "pkg_name=$PKG_NAME"
+            echo "pkg_version=$PKG_VERSION"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Check if wheel exists in release
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          WHEEL_PREFIX="${{ steps.meta.outputs.wheel_prefix }}"
+          RELEASE="${{ matrix.package }}-latest"
+          echo "Checking release $RELEASE for: ${WHEEL_PREFIX}*.whl"
+          mkdir -p dist
+
+          MATCHING=$({ gh release view "$RELEASE" --json assets -q ".assets[].name" 2>/dev/null || true; } | grep -F "${WHEEL_PREFIX}" | grep "manylinux" | head -1 || true)
+          if [ -n "$MATCHING" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Wheel exists in release: $MATCHING"
+            gh release download "$RELEASE" -p "$MATCHING" -D dist
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No manylinux wheel found matching: ${WHEEL_PREFIX}*"
+          fi
+
+      - name: Setup CUDA
+        if: steps.check.outputs.exists != 'true'
+        uses: ./.github/actions/setup-cuda
+        with:
+          cuda-version: ${{ matrix.cuda }}
+          platform: linux
+          installer-type: ${{ matrix.cuda_installer }}
+          extra-components: ${{ matrix.extra_cuda_components }}
+
+      - name: Setup build environment
+        if: steps.check.outputs.exists != 'true'
+        uses: ./.github/actions/setup-build-env
+        with:
+          python-version: ${{ matrix.python }}
+          pytorch-version: ${{ matrix.pytorch }}
+          cuda-short: ${{ matrix.cuda_short }}
+          platform: linux
+          extra-deps: ${{ matrix.extra_deps }}
+
+      - name: Build wheel
+        if: steps.check.outputs.exists != 'true'
+        uses: ./.github/actions/build-wheel
+        with:
+          source-repo: ${{ matrix.source_repo }}
+          source-tag: ${{ matrix.source_tag }}
+          pre-build-script: ${{ matrix.pre_build_script }}
+          arch-list: ${{ matrix.arch_list }}
+          cuda-version: ${{ matrix.cuda }}
+          cuda-short: ${{ matrix.cuda_short }}
+          pytorch-version: ${{ matrix.pytorch }}
+          platform: linux
+          max-jobs: ${{ matrix.max_jobs }}
+          clone-recursive: ${{ matrix.clone_recursive }}
+          patch-script: ${{ matrix.patch_script }}
+          build-subdir: ${{ matrix.build_subdir }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ matrix.package }}-linux-py${{ matrix.python }}-cu${{ matrix.cuda_short }}-torch${{ matrix.pytorch }}
+          path: dist/*.whl
+
+  release:
+    needs: build-linux
+    if: always() && needs.build-linux.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: artifacts
+
+      - name: Create releases per package
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p wheels
+          find artifacts -name "*.whl" -exec cp "{}" "wheels/" \;
+
+          echo "Collected wheels:"
+          ls -la wheels/
+
+          cd wheels
+          for whl in *.whl; do
+            if [ -f "$whl" ]; then
+              pkg="${whl%%-*}"
+              echo "Found package: $pkg"
+              mkdir -p "../releases/$pkg"
+              cp "$whl" "../releases/$pkg/"
+            fi
+          done
+          cd ..
+
+          INDEX_URL=$(python scripts/release_target.py --format index-url)
+          for pkg_dir in releases/*/; do
+            pkg=$(basename "$pkg_dir")
+            echo "Creating release for: $pkg"
+
+            NOTES="Pre-built ${pkg} wheels with CUDA support."$'\n\n'"**Install:**"$'\n'"\`\`\`bash"$'\n'"pip install ${pkg} --extra-index-url ${INDEX_URL}"$'\n'"\`\`\`"
+            gh release create "${pkg}-latest" \
+              --title "${pkg} CUDA Wheels" \
+              --notes "$NOTES" \
+              --latest=false \
+              "$pkg_dir"/*.whl \
+              2>/dev/null || \
+            gh release upload "${pkg}-latest" "$pkg_dir"/*.whl --clobber
+          done
+
+  update-index:
+    needs: release
+    if: always() && needs.release.result == 'success'
+    runs-on: ubuntu-latest
+    environment: deploy-index
+    permissions:
+      contents: write
+      pages: write
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+
+      - name: Generate PEP 503 index
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/generate_index.py
+
+      - name: Generate full build matrix page
+        run: python scripts/fetch_torch_matrix.py --output docs/matrix/matrix.json --html docs/matrix
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
+          force_orphan: true
