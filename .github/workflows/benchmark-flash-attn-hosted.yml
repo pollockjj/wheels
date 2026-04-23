@@ -1,5 +1,5 @@
-name: Benchmark FlashAttn Windows Runner
-run-name: Benchmark flash_attn on Windows self-hosted runner
+name: Benchmark FlashAttn Hosted Runners
+run-name: Benchmark flash_attn on GitHub-hosted Linux and Windows
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -11,19 +11,113 @@ on:
     branches:
       - issue_100
     paths:
-      - .github/workflows/benchmark-flash-attn-windows.yml
+      - .github/workflows/benchmark-flash-attn-hosted.yml
   workflow_dispatch:
 
 jobs:
-  build-windows:
-    name: flash_attn windows benchmark
-    runs-on: [self-hosted, Windows, X64]
+  build-linux:
+    name: flash_attn linux github-hosted benchmark
+    runs-on: ubuntu-22.04
     permissions:
       contents: read
-    env:
-      TMP: C:\actions-runner\_work\_temp
-      TEMP: C:\actions-runner\_work\_temp
-      WHEELS_LOCAL_CACHE_ROOT: C:/actions-runner/_wheels_cache
+
+    steps:
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet &
+          sudo rm -rf /usr/local/lib/android &
+          sudo rm -rf /opt/ghc &
+          sudo rm -rf /opt/hostedtoolcache/CodeQL &
+          sudo rm -rf /usr/share/swift &
+          sudo rm -rf /usr/local/graalvm &
+          sudo rm -rf /usr/local/.ghcup &
+          sudo rm -rf /opt/hostedtoolcache/go &
+          sudo apt-get clean &
+          wait
+          df -h
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Confirm runner and benchmark target
+        shell: bash
+        run: |
+          mkdir -p benchmark-info
+          PHYSICAL_CORES="$(lscpu -p=Core,Socket | grep -v '^#' | sort -u | wc -l)"
+          LOGICAL_PROCESSORS="$(nproc)"
+          TOTAL_RAM_GB="$(awk '/MemTotal/ { printf "%.1f", $2 / 1024 / 1024 }' /proc/meminfo)"
+          {
+            echo "RUNNER_NAME=${RUNNER_NAME:-$(hostname)}"
+            echo "RUNNER_OS=${RUNNER_OS:-Linux}"
+            echo "CONFIGURED_MAX_JOBS=auto"
+            echo "PHYSICAL_CORES=$PHYSICAL_CORES"
+            echo "LOGICAL_PROCESSORS=$LOGICAL_PROCESSORS"
+            echo "TOTAL_RAM_GB=$TOTAL_RAM_GB"
+            echo "CUDA_VERSION=12.6"
+            echo "PYTORCH_VERSION=2.8.0"
+            echo "PYTHON_VERSION=3.10"
+            echo "ARCH_LIST=8.0 9.0"
+          } | tee benchmark-info/runner.txt
+
+      - name: Setup CUDA
+        uses: ./.github/actions/setup-cuda
+        with:
+          cuda-version: "12.6"
+          platform: linux
+          installer-type: network
+          extra-components: ""
+          github-cache: "true"
+
+      - name: Setup build environment
+        uses: ./.github/actions/setup-build-env
+        with:
+          python-version: "3.10"
+          pytorch-version: "2.8.0"
+          cuda-short: "126"
+          platform: linux
+          extra-deps: "psutil"
+          github-cache: "true"
+
+      - name: Build wheel
+        uses: ./.github/actions/build-wheel
+        with:
+          source-repo: Dao-AILab/flash-attention
+          source-tag: v2.8.3
+          pre-build-script: ""
+          arch-list: "8.0 9.0"
+          cuda-version: "12.6"
+          cuda-short: "126"
+          pytorch-version: "2.8.0"
+          platform: linux
+          max-jobs: auto
+          clone-recursive: false
+          patch-script: patches/flash_attn.py
+          build-subdir: ""
+
+      - name: Capture local cache usage
+        shell: bash
+        run: |
+          {
+            echo "CUDA_CACHE_DIR=$GITHUB_WORKSPACE/.cuda-cache"
+            echo "UV_CACHE_DIR=$HOME/.cache/uv"
+            echo "PIP_CACHE_DIR=$HOME/.cache/pip"
+            du -sh "$GITHUB_WORKSPACE/.cuda-cache" 2>/dev/null || true
+            du -sh "$HOME/.cache/uv" 2>/dev/null || true
+            du -sh "$HOME/.cache/pip" 2>/dev/null || true
+          } | tee benchmark-info/cache.txt
+
+      - name: Upload benchmark artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: flash-attn-linux-gh-benchmark-py310-cu126-torch2.8.0
+          path: |
+            dist/*.whl
+            benchmark-info/*.txt
+
+  build-windows:
+    name: flash_attn windows github-hosted benchmark
+    runs-on: windows-2022
+    permissions:
+      contents: read
 
     steps:
       - name: Enable long paths
@@ -45,15 +139,13 @@ jobs:
           $freeGb = [math]::Round($driveC.Free / 1GB, 1)
           @(
             "RUNNER_NAME=$runnerName"
-            "COMPUTERNAME=$env:COMPUTERNAME"
-            "CONFIGURED_MAX_JOBS=6"
+            "RUNNER_OS=Windows"
+            "CONFIGURED_MAX_JOBS=auto"
             "PHYSICAL_CORES=$physicalCores"
             "LOGICAL_PROCESSORS=$logicalProcessors"
             "TOTAL_RAM_GB=$memoryGb"
             "C_DRIVE_USED_GB=$usedGb"
             "C_DRIVE_FREE_GB=$freeGb"
-            "RUNNER_WORKSPACE=$env:RUNNER_WORKSPACE"
-            "WHEELS_LOCAL_CACHE_ROOT=$env:WHEELS_LOCAL_CACHE_ROOT"
             "CUDA_VERSION=12.4"
             "PYTORCH_VERSION=2.6.0"
             "PYTHON_VERSION=3.12"
@@ -61,50 +153,19 @@ jobs:
           ) | Set-Content benchmark-info\runner.txt
           Get-Content benchmark-info\runner.txt
 
-      - name: Check for local CUDA 12.4
-        id: local-cuda
-        shell: powershell
-        run: |
-          $cudaPath = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4"
-          $nvccPath = Join-Path $cudaPath "bin\nvcc.exe"
-          if (Test-Path $nvccPath) {
-            "found=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-            "cuda_home=$cudaPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          } else {
-            "found=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          }
-
-      - name: Use local CUDA 12.4
-        if: steps.local-cuda.outputs.found == 'true'
-        shell: powershell
-        run: |
-          $cudaPath = "${{ steps.local-cuda.outputs.cuda_home }}"
-          "$cudaPath\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          "CUDA_HOME=$cudaPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "WHEELS_CUDA_HOME=$cudaPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "CUDA_SOURCE=local" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
       - name: Setup CUDA
-        if: steps.local-cuda.outputs.found != 'true'
         uses: ./.github/actions/setup-cuda
         with:
           cuda-version: "12.4"
           platform: windows
           installer-type: network
           extra-components: ""
-          github-cache: "false"
-
-      - name: Mark CUDA source
-        if: steps.local-cuda.outputs.found != 'true'
-        shell: powershell
-        run: |
-          "CUDA_SOURCE=installer" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          github-cache: "true"
 
       - name: Capture CUDA info
         shell: powershell
         run: |
           & "$env:CUDA_HOME\bin\nvcc.exe" --version | Set-Content benchmark-info\cuda.txt
-          Add-Content benchmark-info\cuda.txt "CUDA_SOURCE=$env:CUDA_SOURCE"
 
       - name: Setup build environment
         uses: ./.github/actions/setup-build-env
@@ -114,7 +175,7 @@ jobs:
           cuda-short: "124"
           platform: windows
           extra-deps: "psutil"
-          github-cache: "false"
+          github-cache: "true"
 
       - name: Capture Python and torch info
         shell: powershell
@@ -133,7 +194,7 @@ jobs:
           cuda-short: "124"
           pytorch-version: "2.6.0"
           platform: windows
-          max-jobs: "6"
+          max-jobs: auto
           clone-recursive: false
           patch-script: patches/flash_attn.py
           build-subdir: ""
@@ -142,13 +203,13 @@ jobs:
         shell: powershell
         run: |
           @(
-            "WHEELS_LOCAL_CACHE_ROOT=$env:WHEELS_LOCAL_CACHE_ROOT"
+            "CUDA_HOME=$env:CUDA_HOME"
             "UV_CACHE=$env:LOCALAPPDATA\uv\cache"
             "PIP_CACHE=$env:LOCALAPPDATA\pip\Cache"
           ) | Set-Content benchmark-info\cache.txt
 
           foreach ($path in @(
-            $env:WHEELS_LOCAL_CACHE_ROOT,
+            $env:CUDA_HOME,
             "$env:LOCALAPPDATA\uv\cache",
             "$env:LOCALAPPDATA\pip\Cache"
           )) {
@@ -164,7 +225,7 @@ jobs:
       - name: Upload benchmark artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: flash-attn-windows-benchmark-py312-cu124-torch2.6.0
+          name: flash-attn-windows-gh-benchmark-py312-cu124-torch2.6.0
           path: |
             dist/*.whl
             benchmark-info/*.txt
