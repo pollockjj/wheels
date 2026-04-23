@@ -16,6 +16,7 @@ jobs:
       TMPDIR: /opt/runner/_work/_temp
       TMP: /opt/runner/_work/_temp
       TEMP: /opt/runner/_work/_temp
+      FLASH_ATTENTION_FORCE_BUILD: "TRUE"
     strategy:
       fail-fast: false
       matrix:
