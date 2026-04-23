@@ -18,6 +18,10 @@ inputs:
     description: 'Extra pip dependencies'
     required: false
     default: ''
+  github-cache:
+    description: 'Use GitHub Actions cache restore/save'
+    required: false
+    default: 'true'
 
 outputs:
   cache-hit:
@@ -34,7 +38,7 @@ runs:
 
     # ============== LINUX ==============
     - name: Restore uv cache (Linux)
-      if: inputs.platform == 'linux'
+      if: inputs.platform == 'linux' && inputs.github-cache == 'true'
       id: uv-cache-linux
       uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
@@ -52,6 +56,7 @@ runs:
     - name: Save uv cache (Linux)
       if: |
         inputs.platform == 'linux' && steps.uv-cache-linux.outputs.cache-hit != 'true' &&
+        inputs.github-cache == 'true' &&
         ((inputs.cuda-short == '124' && inputs.pytorch-version == '2.4.0') ||
          (inputs.cuda-short == '128' && inputs.pytorch-version == '2.8.0'))
       uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
@@ -61,7 +66,7 @@ runs:
 
     # ============== WINDOWS ==============
     - name: Restore uv cache (Windows)
-      if: inputs.platform == 'windows'
+      if: inputs.platform == 'windows' && inputs.github-cache == 'true'
       id: uv-cache-windows
       uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
@@ -95,6 +100,7 @@ runs:
     - name: Save uv cache (Windows)
       if: |
         inputs.platform == 'windows' && steps.uv-cache-windows.outputs.cache-hit != 'true' &&
+        inputs.github-cache == 'true' &&
         ((inputs.cuda-short == '124' && inputs.pytorch-version == '2.4.0') ||
          (inputs.cuda-short == '128' && inputs.pytorch-version == '2.8.0'))
       uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
@@ -108,7 +114,7 @@ runs:
       shell: bash
       run: |
         if [ "${{ inputs.platform }}" == "linux" ]; then
-          echo "cache-hit=${{ steps.uv-cache-linux.outputs.cache-hit }}" >> $GITHUB_OUTPUT
+          echo "cache-hit=${{ steps.uv-cache-linux.outputs.cache-hit || 'false' }}" >> $GITHUB_OUTPUT
         else
-          echo "cache-hit=${{ steps.uv-cache-windows.outputs.cache-hit }}" >> $GITHUB_OUTPUT
+          echo "cache-hit=${{ steps.uv-cache-windows.outputs.cache-hit || 'false' }}" >> $GITHUB_OUTPUT
         fi

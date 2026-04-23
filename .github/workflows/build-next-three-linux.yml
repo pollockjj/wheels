@@ -138,6 +138,7 @@ jobs:
           platform: linux
           installer-type: ${{ matrix.cuda_installer }}
           extra-components: ${{ matrix.extra_cuda_components }}
+          github-cache: 'false'
 
       - name: Setup build environment
         if: steps.check.outputs.exists != 'true'
@@ -148,6 +149,7 @@ jobs:
           cuda-short: ${{ matrix.cuda_short }}
           platform: linux
           extra-deps: ${{ matrix.extra_deps }}
+          github-cache: 'false'
 
       - name: Build wheel
         if: steps.check.outputs.exists != 'true'

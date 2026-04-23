@@ -16,6 +16,10 @@ inputs:
     description: 'Extra CUDA components to install (space-separated, e.g., "curand_dev cufft_dev nvtx")'
     required: false
     default: ''
+  github-cache:
+    description: 'Use GitHub Actions cache restore/save'
+    required: false
+    default: 'true'
 
 outputs:
   cache-hit:
@@ -27,7 +31,7 @@ runs:
   steps:
     # ============== LINUX ==============
     - name: Restore CUDA cache (Linux)
-      if: inputs.platform == 'linux'
+      if: inputs.platform == 'linux' && inputs.github-cache == 'true'
       id: cuda-cache-linux
       uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
@@ -66,19 +70,20 @@ runs:
           sudo apt-get install -y $EXTRA_PKGS
         fi
 
-        # Copy to cacheable workspace location
-        mkdir -p .cuda-cache
-        cp -r /usr/local/cuda-${{ inputs.cuda-version }} .cuda-cache/
+        if [ "${{ inputs.github-cache }}" = "true" ]; then
+          mkdir -p .cuda-cache
+          cp -r /usr/local/cuda-${{ inputs.cuda-version }} .cuda-cache/
+        fi
 
     - name: Save CUDA cache (Linux)
-      if: inputs.platform == 'linux' && steps.cuda-cache-linux.outputs.cache-hit != 'true' && (inputs.cuda-version == '12.4' || inputs.cuda-version == '12.8')
+      if: inputs.platform == 'linux' && inputs.github-cache == 'true' && steps.cuda-cache-linux.outputs.cache-hit != 'true' && (inputs.cuda-version == '12.4' || inputs.cuda-version == '12.8')
       uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: .cuda-cache/cuda-${{ inputs.cuda-version }}
         key: cuda-${{ inputs.cuda-version }}-linux-v3
 
     - name: Restore CUDA from cache (Linux)
-      if: inputs.platform == 'linux' && steps.cuda-cache-linux.outputs.cache-hit == 'true'
+      if: inputs.platform == 'linux' && inputs.github-cache == 'true' && steps.cuda-cache-linux.outputs.cache-hit == 'true'
       shell: bash
       run: |
         sudo cp -r .cuda-cache/cuda-${{ inputs.cuda-version }} /usr/local/
@@ -94,7 +99,7 @@ runs:
 
     # ============== WINDOWS ==============
     - name: Restore CUDA cache (Windows)
-      if: inputs.platform == 'windows'
+      if: inputs.platform == 'windows' && inputs.github-cache == 'true'
       id: cuda-cache-windows
       uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
@@ -193,7 +198,7 @@ runs:
         & $nvccPath --version
 
     - name: Save CUDA cache (Windows)
-      if: inputs.platform == 'windows' && steps.cuda-cache-windows.outputs.cache-hit != 'true' && (inputs.cuda-version == '12.4' || inputs.cuda-version == '12.8')
+      if: inputs.platform == 'windows' && inputs.github-cache == 'true' && steps.cuda-cache-windows.outputs.cache-hit != 'true' && (inputs.cuda-version == '12.4' || inputs.cuda-version == '12.8')
       uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v${{ inputs.cuda-version }}
@@ -213,7 +218,7 @@ runs:
       shell: bash
       run: |
         if [ "${{ inputs.platform }}" == "linux" ]; then
-          echo "cache-hit=${{ steps.cuda-cache-linux.outputs.cache-hit }}" >> $GITHUB_OUTPUT
+          echo "cache-hit=${{ steps.cuda-cache-linux.outputs.cache-hit || 'false' }}" >> $GITHUB_OUTPUT
         else
-          echo "cache-hit=${{ steps.cuda-cache-windows.outputs.cache-hit }}" >> $GITHUB_OUTPUT
+          echo "cache-hit=${{ steps.cuda-cache-windows.outputs.cache-hit || 'false' }}" >> $GITHUB_OUTPUT
         fi
