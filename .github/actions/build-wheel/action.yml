@@ -31,7 +31,7 @@ inputs:
   max-jobs:
     description: 'Max parallel compilation jobs'
     required: false
-    default: '1'
+    default: 'auto'
   clone-recursive:
     description: 'Clone with --recursive for submodules'
     required: false
@@ -91,7 +91,20 @@ runs:
         cd $BUILD_DIR
         export TORCH_CUDA_ARCH_LIST="${{ inputs.arch-list }}"
         export CUDA_HOME=/usr/local/cuda-${{ inputs.cuda-version }}
-        export MAX_JOBS=${{ inputs.max-jobs }}
+        REQUESTED_MAX_JOBS="${{ inputs.max-jobs }}"
+        if [ -n "${RUNNER_MAX_JOBS:-}" ]; then
+          export MAX_JOBS="$RUNNER_MAX_JOBS"
+        elif [ "$REQUESTED_MAX_JOBS" = "auto" ]; then
+          case "${RUNNER_NAME:-$(hostname)}" in
+            prosoche-fa3|prosoche*) export MAX_JOBS=16 ;;
+            nasferatu-fa3|nasferatu*) export MAX_JOBS=6 ;;
+            llamatron-fa3|llamatron*) export MAX_JOBS=8 ;;
+            *) export MAX_JOBS="$(lscpu -p=Core,Socket | grep -v '^#' | sort -u | wc -l)" ;;
+          esac
+        else
+          export MAX_JOBS="$REQUESTED_MAX_JOBS"
+        fi
+        echo "MAX_JOBS=$MAX_JOBS for runner ${RUNNER_NAME:-$(hostname)}"
         # Force CUDA build even without a GPU (torch.cuda.is_available() is False on CI)
         export FORCE_CUDA=1
         # Add CUDA stubs to library path for linking (libcuda.so)
@@ -169,7 +182,24 @@ runs:
         }
         cd $buildDir
         $env:TORCH_CUDA_ARCH_LIST = "${{ inputs.arch-list }}"
-        $env:MAX_JOBS = "${{ inputs.max-jobs }}"
+        $requestedMaxJobs = "${{ inputs.max-jobs }}"
+        if ($env:RUNNER_MAX_JOBS) {
+          $env:MAX_JOBS = $env:RUNNER_MAX_JOBS
+        } elseif ($requestedMaxJobs -eq "auto") {
+          $runnerName = if ($env:RUNNER_NAME) { $env:RUNNER_NAME } else { $env:COMPUTERNAME }
+          if ($runnerName -like "prosoche*") {
+            $env:MAX_JOBS = "16"
+          } elseif ($runnerName -like "nasferatu*") {
+            $env:MAX_JOBS = "6"
+          } elseif ($runnerName -like "llamatron*") {
+            $env:MAX_JOBS = "8"
+          } else {
+            $env:MAX_JOBS = (Get-CimInstance Win32_Processor | Measure-Object -Property NumberOfCores -Sum).Sum.ToString()
+          }
+        } else {
+          $env:MAX_JOBS = $requestedMaxJobs
+        }
+        Write-Host "MAX_JOBS=$env:MAX_JOBS for runner $env:RUNNER_NAME"
         $env:DISTUTILS_USE_SDK = "1"
         # Force CUDA build even without a GPU (torch.cuda.is_available() is False on CI)
         $env:FORCE_CUDA = "1"
