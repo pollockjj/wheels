@@ -16,66 +16,65 @@ jobs:
       TMPDIR: /opt/runner/_work/_temp
       TMP: /opt/runner/_work/_temp
       TEMP: /opt/runner/_work/_temp
-      FLASH_ATTENTION_FORCE_BUILD: "TRUE"
     strategy:
       fail-fast: false
       matrix:
         include:
-          - package: flash_attn
-            version: "2.8.3"
+          - package: flash_attn_3
+            version: "3.0.0"
             source_repo: Dao-AILab/flash-attention
-            source_tag: v2.8.3
-            cuda: "12.4"
-            cuda_short: "124"
-            pytorch: "2.4.0"
-            python: "3.10"
+            source_tag: 3a7694c04748e3ba1cd954eb5dfdfd4b6646a234
+            cuda: "12.6"
+            cuda_short: "126"
+            pytorch: "2.8.0"
+            python: "3.9"
             platform: linux
             arch_list: "8.0 9.0"
-            extra_deps: "psutil"
+            extra_deps: "einops psutil"
             pre_build_script: ""
             free_disk_space: true
             max_jobs: 6
             clone_recursive: false
-            patch_script: patches/flash_attn.py
-            build_subdir: ""
+            patch_script: ""
+            build_subdir: hopper
             cuda_installer: network
             extra_cuda_components: ""
-          - package: flash_attn
-            version: "2.8.3"
+          - package: flash_attn_3
+            version: "3.0.0"
             source_repo: Dao-AILab/flash-attention
-            source_tag: v2.8.3
-            cuda: "12.4"
-            cuda_short: "124"
-            pytorch: "2.4.0"
-            python: "3.11"
+            source_tag: 3a7694c04748e3ba1cd954eb5dfdfd4b6646a234
+            cuda: "12.6"
+            cuda_short: "126"
+            pytorch: "2.9.0"
+            python: "3.9"
             platform: linux
             arch_list: "8.0 9.0"
-            extra_deps: "psutil"
+            extra_deps: "einops psutil"
             pre_build_script: ""
             free_disk_space: true
             max_jobs: 6
             clone_recursive: false
-            patch_script: patches/flash_attn.py
-            build_subdir: ""
+            patch_script: ""
+            build_subdir: hopper
             cuda_installer: network
             extra_cuda_components: ""
-          - package: flash_attn
-            version: "2.8.3"
+          - package: flash_attn_3
+            version: "3.0.0"
             source_repo: Dao-AILab/flash-attention
-            source_tag: v2.8.3
-            cuda: "12.4"
-            cuda_short: "124"
-            pytorch: "2.4.0"
-            python: "3.12"
+            source_tag: 3a7694c04748e3ba1cd954eb5dfdfd4b6646a234
+            cuda: "12.6"
+            cuda_short: "126"
+            pytorch: "2.10.0"
+            python: "3.9"
             platform: linux
             arch_list: "8.0 9.0"
-            extra_deps: "psutil"
+            extra_deps: "einops psutil"
             pre_build_script: ""
             free_disk_space: true
             max_jobs: 6
             clone_recursive: false
-            patch_script: patches/flash_attn.py
-            build_subdir: ""
+            patch_script: ""
+            build_subdir: hopper
             cuda_installer: network
             extra_cuda_components: ""
     permissions:
