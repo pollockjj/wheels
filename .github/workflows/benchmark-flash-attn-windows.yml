@@ -1,0 +1,165 @@
+name: Benchmark FlashAttn Windows Runner
+run-name: Benchmark flash_attn on Windows self-hosted runner
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  UV_LINK_MODE: copy
+  UV_HTTP_TIMEOUT: "600"
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: flash_attn windows benchmark
+    runs-on: [self-hosted, Windows, X64]
+    permissions:
+      contents: read
+    env:
+      TMP: C:\actions-runner\_work\_temp
+      TEMP: C:\actions-runner\_work\_temp
+      WHEELS_LOCAL_CACHE_ROOT: C:/actions-runner/_wheels_cache
+
+    steps:
+      - name: Enable long paths
+        shell: powershell
+        run: git config --global core.longpaths true
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Confirm runner and benchmark target
+        shell: powershell
+        run: |
+          New-Item -ItemType Directory -Force benchmark-info | Out-Null
+          $runnerName = if ($env:RUNNER_NAME) { $env:RUNNER_NAME } else { $env:COMPUTERNAME }
+          $physicalCores = (Get-CimInstance Win32_Processor | Measure-Object -Property NumberOfCores -Sum).Sum
+          $logicalProcessors = (Get-CimInstance Win32_Processor | Measure-Object -Property NumberOfLogicalProcessors -Sum).Sum
+          $memoryGb = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 1)
+          $driveC = Get-PSDrive C
+          $usedGb = [math]::Round($driveC.Used / 1GB, 1)
+          $freeGb = [math]::Round($driveC.Free / 1GB, 1)
+          @(
+            "RUNNER_NAME=$runnerName"
+            "COMPUTERNAME=$env:COMPUTERNAME"
+            "CONFIGURED_MAX_JOBS=12"
+            "PHYSICAL_CORES=$physicalCores"
+            "LOGICAL_PROCESSORS=$logicalProcessors"
+            "TOTAL_RAM_GB=$memoryGb"
+            "C_DRIVE_USED_GB=$usedGb"
+            "C_DRIVE_FREE_GB=$freeGb"
+            "RUNNER_WORKSPACE=$env:RUNNER_WORKSPACE"
+            "WHEELS_LOCAL_CACHE_ROOT=$env:WHEELS_LOCAL_CACHE_ROOT"
+            "CUDA_VERSION=12.4"
+            "PYTORCH_VERSION=2.6.0"
+            "PYTHON_VERSION=3.12"
+            "ARCH_LIST=8.0 9.0"
+          ) | Set-Content benchmark-info\runner.txt
+          Get-Content benchmark-info\runner.txt
+
+      - name: Check for local CUDA 12.4
+        id: local-cuda
+        shell: powershell
+        run: |
+          $cudaPath = "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.4"
+          $nvccPath = Join-Path $cudaPath "bin\nvcc.exe"
+          if (Test-Path $nvccPath) {
+            "found=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "cuda_home=$cudaPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          } else {
+            "found=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          }
+
+      - name: Use local CUDA 12.4
+        if: steps.local-cuda.outputs.found == 'true'
+        shell: powershell
+        run: |
+          $cudaPath = "${{ steps.local-cuda.outputs.cuda_home }}"
+          "$cudaPath\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          "CUDA_HOME=$cudaPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "WHEELS_CUDA_HOME=$cudaPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "CUDA_SOURCE=local" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Setup CUDA
+        if: steps.local-cuda.outputs.found != 'true'
+        uses: ./.github/actions/setup-cuda
+        with:
+          cuda-version: "12.4"
+          platform: windows
+          installer-type: network
+          extra-components: ""
+          github-cache: "false"
+
+      - name: Mark CUDA source
+        if: steps.local-cuda.outputs.found != 'true'
+        shell: powershell
+        run: |
+          "CUDA_SOURCE=installer" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Capture CUDA info
+        shell: powershell
+        run: |
+          & "$env:CUDA_HOME\bin\nvcc.exe" --version | Set-Content benchmark-info\cuda.txt
+          Add-Content benchmark-info\cuda.txt "CUDA_SOURCE=$env:CUDA_SOURCE"
+
+      - name: Setup build environment
+        uses: ./.github/actions/setup-build-env
+        with:
+          python-version: "3.12"
+          pytorch-version: "2.6.0"
+          cuda-short: "124"
+          platform: windows
+          extra-deps: "psutil"
+          github-cache: "false"
+
+      - name: Capture Python and torch info
+        shell: powershell
+        run: |
+          python -c "import sys; print(sys.version)" | Set-Content benchmark-info\python.txt
+          python -c "import torch; print(torch.__version__); print(torch.version.cuda)" | Add-Content benchmark-info\python.txt
+
+      - name: Build wheel
+        uses: ./.github/actions/build-wheel
+        with:
+          source-repo: Dao-AILab/flash-attention
+          source-tag: v2.8.3
+          pre-build-script: ""
+          arch-list: "8.0 9.0"
+          cuda-version: "12.4"
+          cuda-short: "124"
+          pytorch-version: "2.6.0"
+          platform: windows
+          max-jobs: "12"
+          clone-recursive: false
+          patch-script: patches/flash_attn.py
+          build-subdir: ""
+
+      - name: Capture local cache usage
+        shell: powershell
+        run: |
+          @(
+            "WHEELS_LOCAL_CACHE_ROOT=$env:WHEELS_LOCAL_CACHE_ROOT"
+            "UV_CACHE=$env:LOCALAPPDATA\uv\cache"
+            "PIP_CACHE=$env:LOCALAPPDATA\pip\Cache"
+          ) | Set-Content benchmark-info\cache.txt
+
+          foreach ($path in @(
+            $env:WHEELS_LOCAL_CACHE_ROOT,
+            "$env:LOCALAPPDATA\uv\cache",
+            "$env:LOCALAPPDATA\pip\Cache"
+          )) {
+            if (Test-Path $path) {
+              $bytes = (Get-ChildItem $path -Recurse -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+              $gigabytes = [math]::Round(($bytes / 1GB), 2)
+              Add-Content benchmark-info\cache.txt "$path`t$gigabytes GB"
+            } else {
+              Add-Content benchmark-info\cache.txt "$path`tMISSING"
+            }
+          }
+
+      - name: Upload benchmark artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: flash-attn-windows-benchmark-py312-cu124-torch2.6.0
+          path: |
+            dist/*.whl
+            benchmark-info/*.txt
