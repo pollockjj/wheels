@@ -49,7 +49,17 @@ runs:
       if: inputs.platform == 'linux'
       shell: bash
       run: |
-        pip install uv
+        if [ "${{ inputs.github-cache }}" != "true" ]; then
+          CACHE_ROOT="${WHEELS_LOCAL_CACHE_ROOT:-${RUNNER_WORKSPACE:-$HOME}/../_wheels_cache}"
+          export UV_CACHE_DIR="$CACHE_ROOT/uv"
+          export PIP_CACHE_DIR="$CACHE_ROOT/pip"
+          export UV_LINK_MODE="${UV_LINK_MODE:-copy}"
+          mkdir -p "$UV_CACHE_DIR" "$PIP_CACHE_DIR"
+          echo "Using local uv cache: $UV_CACHE_DIR"
+          echo "Using local pip cache: $PIP_CACHE_DIR"
+        fi
+
+        python -m pip install --cache-dir "${PIP_CACHE_DIR:-$HOME/.cache/pip}" uv
         uv pip install --system torch==${{ inputs.pytorch-version }} --index-url https://download.pytorch.org/whl/cu${{ inputs.cuda-short }}
         uv pip install --system wheel setuptools ninja numpy triton packaging ${{ inputs.extra-deps }}
 

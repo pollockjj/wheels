@@ -3,6 +3,7 @@ run-name: "Build ${{ inputs.package }} wheels${{ inputs.overwrite == true && ' (
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  UV_LINK_MODE: copy
 
 on:
   workflow_dispatch:
@@ -85,7 +86,7 @@ jobs:
 
     steps:
       - name: Free disk space
-        if: matrix.free_disk_space == true
+        if: matrix.free_disk_space == true && runner.environment == 'github-hosted'
         run: |
           sudo rm -rf /usr/share/dotnet &
           sudo rm -rf /usr/local/lib/android &
@@ -153,6 +154,7 @@ jobs:
           platform: linux
           installer-type: ${{ matrix.cuda_installer }}
           extra-components: ${{ matrix.extra_cuda_components }}
+          github-cache: ${{ runner.environment == 'github-hosted' && 'true' || 'false' }}
 
       - name: Setup build environment
         if: steps.check.outputs.exists != 'true'
@@ -163,6 +165,7 @@ jobs:
           cuda-short: ${{ matrix.cuda_short }}
           platform: linux
           extra-deps: ${{ matrix.extra_deps }}
+          github-cache: ${{ runner.environment == 'github-hosted' && 'true' || 'false' }}
 
       - name: Add swap space
         if: steps.check.outputs.exists != 'true' && (matrix.package == 'sageattention' || matrix.package == 'sageattn3')

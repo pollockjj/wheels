@@ -42,6 +42,28 @@ runs:
       if: inputs.platform == 'linux' && steps.cuda-cache-linux.outputs.cache-hit != 'true'
       shell: bash
       run: |
+        if [ "${{ inputs.github-cache }}" != "true" ]; then
+          CACHE_ROOT="${WHEELS_LOCAL_CACHE_ROOT:-${RUNNER_WORKSPACE:-$HOME}/../_wheels_cache}"
+          LOCAL_CUDA="$CACHE_ROOT/cuda/cuda-${{ inputs.cuda-version }}"
+          SYSTEM_CUDA="/usr/local/cuda-${{ inputs.cuda-version }}"
+
+          echo "Using local CUDA cache root: $CACHE_ROOT"
+          if [ -x "$LOCAL_CUDA/bin/nvcc" ]; then
+            echo "LOCAL_CUDA_CACHE_HIT=true"
+            exit 0
+          fi
+
+          if [ -x "$SYSTEM_CUDA/bin/nvcc" ]; then
+            echo "LOCAL_CUDA_CACHE_HIT=false"
+            echo "Seeding local CUDA cache from $SYSTEM_CUDA"
+            mkdir -p "$CACHE_ROOT/cuda"
+            rm -rf "$LOCAL_CUDA.tmp"
+            cp -a "$SYSTEM_CUDA" "$LOCAL_CUDA.tmp"
+            mv "$LOCAL_CUDA.tmp" "$LOCAL_CUDA"
+            exit 0
+          fi
+        fi
+
         CUDA_APT=$(echo "${{ inputs.cuda-version }}" | tr '.' '-')
         wget -q https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
         sudo dpkg -i cuda-keyring_1.1-1_all.deb
@@ -73,6 +95,13 @@ runs:
         if [ "${{ inputs.github-cache }}" = "true" ]; then
           mkdir -p .cuda-cache
           cp -r /usr/local/cuda-${{ inputs.cuda-version }} .cuda-cache/
+        else
+          CACHE_ROOT="${WHEELS_LOCAL_CACHE_ROOT:-${RUNNER_WORKSPACE:-$HOME}/../_wheels_cache}"
+          LOCAL_CUDA="$CACHE_ROOT/cuda/cuda-${{ inputs.cuda-version }}"
+          mkdir -p "$CACHE_ROOT/cuda"
+          rm -rf "$LOCAL_CUDA.tmp"
+          cp -a /usr/local/cuda-${{ inputs.cuda-version }} "$LOCAL_CUDA.tmp"
+          mv "$LOCAL_CUDA.tmp" "$LOCAL_CUDA"
         fi
 
     - name: Save CUDA cache (Linux)
@@ -92,10 +121,24 @@ runs:
       if: inputs.platform == 'linux'
       shell: bash
       run: |
-        echo "/usr/local/cuda-${{ inputs.cuda-version }}/bin" >> $GITHUB_PATH
-        echo "CUDA_HOME=/usr/local/cuda-${{ inputs.cuda-version }}" >> $GITHUB_ENV
-        # Create /usr/local/cuda symlink for packages that expect it (e.g., cumm/spconv)
-        sudo ln -sf /usr/local/cuda-${{ inputs.cuda-version }} /usr/local/cuda
+        CUDA_HOME_VALUE="/usr/local/cuda-${{ inputs.cuda-version }}"
+        if [ "${{ inputs.github-cache }}" != "true" ]; then
+          CACHE_ROOT="${WHEELS_LOCAL_CACHE_ROOT:-${RUNNER_WORKSPACE:-$HOME}/../_wheels_cache}"
+          LOCAL_CUDA="$CACHE_ROOT/cuda/cuda-${{ inputs.cuda-version }}"
+          if [ -x "$LOCAL_CUDA/bin/nvcc" ]; then
+            CUDA_HOME_VALUE="$LOCAL_CUDA"
+          fi
+        fi
+
+        if [ ! -x "$CUDA_HOME_VALUE/bin/nvcc" ]; then
+          echo "::error::CUDA nvcc not found at $CUDA_HOME_VALUE/bin/nvcc"
+          exit 1
+        fi
+
+        echo "CUDA_HOME=$CUDA_HOME_VALUE"
+        echo "$CUDA_HOME_VALUE/bin" >> $GITHUB_PATH
+        echo "CUDA_HOME=$CUDA_HOME_VALUE" >> $GITHUB_ENV
+        echo "WHEELS_CUDA_HOME=$CUDA_HOME_VALUE" >> $GITHUB_ENV
 
     # ============== WINDOWS ==============
     - name: Restore CUDA cache (Windows)

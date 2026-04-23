@@ -9,6 +9,7 @@ arch_list: "8.0 9.0"
 free_disk_space: true
 clone_recursive: false
 max_jobs: auto
+linux_runs_on: fa3-builder
 
 # Bridge TORCH_CUDA_ARCH_LIST → FLASH_ATTN_CUDA_ARCHS
 patch_script: patches/flash_attn.py

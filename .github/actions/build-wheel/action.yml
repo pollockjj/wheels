@@ -60,10 +60,27 @@ runs:
         if [ "${{ inputs.clone-recursive }}" == "true" ]; then
           RECURSIVE_FLAG="--recursive"
         fi
-        git clone $RECURSIVE_FLAG https://github.com/${{ inputs.source-repo }}.git source
+
+        CACHE_ROOT="${WHEELS_LOCAL_CACHE_ROOT:-${RUNNER_WORKSPACE:-$HOME}/../_wheels_cache}"
+        SOURCE_CACHE="$CACHE_ROOT/git/$(echo "${{ inputs.source-repo }}" | tr '/:' '__').git"
+
+        if [ -d "$SOURCE_CACHE" ]; then
+          echo "LOCAL_SOURCE_CACHE_HIT=true"
+          git -C "$SOURCE_CACHE" fetch --tags --prune origin
+        else
+          echo "LOCAL_SOURCE_CACHE_HIT=false"
+          mkdir -p "$CACHE_ROOT/git"
+          git clone --mirror https://github.com/${{ inputs.source-repo }}.git "$SOURCE_CACHE"
+        fi
+
+        git clone $RECURSIVE_FLAG "$SOURCE_CACHE" source
         cd source
+        git remote set-url origin https://github.com/${{ inputs.source-repo }}.git
         if [ -n "${{ inputs.source-tag }}" ]; then
           git checkout ${{ inputs.source-tag }}
+        fi
+        if [ "${{ inputs.clone-recursive }}" == "true" ]; then
+          git submodule update --init --recursive
         fi
 
     - name: Apply patch script
@@ -90,7 +107,7 @@ runs:
         fi
         cd $BUILD_DIR
         export TORCH_CUDA_ARCH_LIST="${{ inputs.arch-list }}"
-        export CUDA_HOME=/usr/local/cuda-${{ inputs.cuda-version }}
+        export CUDA_HOME="${CUDA_HOME:-/usr/local/cuda-${{ inputs.cuda-version }}}"
         REQUESTED_MAX_JOBS="${{ inputs.max-jobs }}"
         if [ -n "${RUNNER_MAX_JOBS:-}" ]; then
           export MAX_JOBS="$RUNNER_MAX_JOBS"
@@ -108,7 +125,7 @@ runs:
         # Force CUDA build even without a GPU (torch.cuda.is_available() is False on CI)
         export FORCE_CUDA=1
         # Add CUDA stubs to library path for linking (libcuda.so)
-        export LIBRARY_PATH=/usr/local/cuda-${{ inputs.cuda-version }}/lib64/stubs:${LIBRARY_PATH:-}
+        export LIBRARY_PATH=$CUDA_HOME/lib64/stubs:${LIBRARY_PATH:-}
         # For cumm/spconv: set CUDA version for prebuilt mode
         export CUMM_CUDA_VERSION="${{ inputs.cuda-version }}"
         export CUMM_CUDA_ARCH_LIST="${{ inputs.arch-list }}"
@@ -127,7 +144,7 @@ runs:
           BUILD_DIR="source/${{ inputs.build-subdir }}"
         fi
         # Add CUDA toolkit libs so auditwheel can find and bundle them (e.g. libnvrtc-builtins.so)
-        export LD_LIBRARY_PATH=/usr/local/cuda-${{ inputs.cuda-version }}/lib64:${LD_LIBRARY_PATH:-}
+        export LD_LIBRARY_PATH=${CUDA_HOME:-/usr/local/cuda-${{ inputs.cuda-version }}}/lib64:${LD_LIBRARY_PATH:-}
         cd $BUILD_DIR/dist
         for whl in *.whl; do
           # Skip pure Python wheels
