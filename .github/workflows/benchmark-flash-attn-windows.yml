@@ -44,7 +44,7 @@ jobs:
           @(
             "RUNNER_NAME=$runnerName"
             "COMPUTERNAME=$env:COMPUTERNAME"
-            "CONFIGURED_MAX_JOBS=12"
+            "CONFIGURED_MAX_JOBS=6"
             "PHYSICAL_CORES=$physicalCores"
             "LOGICAL_PROCESSORS=$logicalProcessors"
             "TOTAL_RAM_GB=$memoryGb"
@@ -131,7 +131,7 @@ jobs:
           cuda-short: "124"
           pytorch-version: "2.6.0"
           platform: windows
-          max-jobs: "12"
+          max-jobs: "6"
           clone-recursive: false
           patch-script: patches/flash_attn.py
           build-subdir: ""
