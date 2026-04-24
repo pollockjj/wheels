@@ -1,0 +1,111 @@
+name: Build Exact Flash3 Linux Wheel on NASferatu
+run-name: Build flash_attn_3 py3.14 cu130 torch2.11.0 on nasferatu
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  UV_LINK_MODE: copy
+  UV_HTTP_TIMEOUT: "600"
+
+on:
+  push:
+    branches:
+      - issue_100
+    paths:
+      - .github/workflows/build-exact-flash3-linux-nasferatu.yml
+  workflow_dispatch:
+
+concurrency:
+  group: build-exact-flash3-linux-nasferatu
+  cancel-in-progress: false
+
+jobs:
+  build-linux:
+    name: flash_attn_3 py3.14 cu130 torch2.11.0 on nasferatu
+    runs-on: [self-hosted, Linux, X64, fa3-builder, nasferatu-fa3]
+    env:
+      TMPDIR: /opt/runner/_work/_temp
+      TMP: /opt/runner/_work/_temp
+      TEMP: /opt/runner/_work/_temp
+      RUNNER_MAX_JOBS: "6"
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Confirm runner and exact tuple
+        shell: bash
+        run: |
+          mkdir -p benchmark-info
+          case "${RUNNER_NAME:-$(hostname)}" in
+            nasferatu-fa3|nasferatu*)
+              ;;
+            *)
+              echo "::error::Expected NASferatu runner, got ${RUNNER_NAME:-$(hostname)}"
+              exit 1
+              ;;
+          esac
+          {
+            echo "RUNNER_NAME=${RUNNER_NAME:-$(hostname)}"
+            echo "RUNNER_OS=${RUNNER_OS:-Linux}"
+            echo "CONFIGURED_MAX_JOBS=${RUNNER_MAX_JOBS}"
+            echo "PYTHON=3.14"
+            echo "CUDA=13.0"
+            echo "CUDA_SHORT=130"
+            echo "PYTORCH=2.11.0"
+            echo "ARCH_LIST=8.0 9.0"
+            echo "BUILD_SUBDIR=hopper"
+          } | tee benchmark-info/runner.txt
+
+      - name: Setup CUDA
+        uses: ./.github/actions/setup-cuda
+        with:
+          cuda-version: "13.0"
+          platform: linux
+          installer-type: network
+          extra-components: ""
+          github-cache: "false"
+
+      - name: Setup build environment
+        uses: ./.github/actions/setup-build-env
+        with:
+          python-version: "3.14"
+          pytorch-version: "2.11.0"
+          cuda-short: "130"
+          platform: linux
+          extra-deps: "einops psutil"
+          github-cache: "false"
+
+      - name: Build wheel
+        uses: ./.github/actions/build-wheel
+        with:
+          source-repo: Dao-AILab/flash-attention
+          source-tag: 3a7694c04748e3ba1cd954eb5dfdfd4b6646a234
+          pre-build-script: ""
+          arch-list: "8.0 9.0"
+          cuda-version: "13.0"
+          cuda-short: "130"
+          pytorch-version: "2.11.0"
+          platform: linux
+          max-jobs: "6"
+          clone-recursive: false
+          patch-script: ""
+          build-subdir: hopper
+
+      - name: Capture local cache usage
+        shell: bash
+        run: |
+          CACHE_ROOT="${WHEELS_LOCAL_CACHE_ROOT:-${RUNNER_WORKSPACE:-$HOME}/../_wheels_cache}"
+          {
+            echo "CACHE_ROOT=$CACHE_ROOT"
+            du -sh "$CACHE_ROOT" 2>/dev/null || true
+            find "$CACHE_ROOT" -maxdepth 2 -type d 2>/dev/null | sort
+          } | tee benchmark-info/cache.txt
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: flash-attn-3-linux-py314-cu130-torch2.11.0-nasferatu
+          path: |
+            dist/*.whl
+            benchmark-info/*.txt
