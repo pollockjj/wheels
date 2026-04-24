@@ -1,5 +1,5 @@
 name: Build Exact FlashAttn Linux Wheel on NASferatu
-run-name: Build flash_attn py3.14 cu130 torch2.11.0 on nasferatu
+run-name: Build flash_attn py3.12 cu130 torch2.11.0 on nasferatu
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   build-linux:
-    name: flash_attn py3.14 cu130 torch2.11.0 on nasferatu
+    name: flash_attn py3.12 cu130 torch2.11.0 on nasferatu
     runs-on: [self-hosted, Linux, X64, fa3-builder, nasferatu-fa3]
     env:
       TMPDIR: /opt/runner/_work/_temp
@@ -49,7 +49,7 @@ jobs:
             echo "RUNNER_NAME=${RUNNER_NAME:-$(hostname)}"
             echo "RUNNER_OS=${RUNNER_OS:-Linux}"
             echo "CONFIGURED_MAX_JOBS=${RUNNER_MAX_JOBS}"
-            echo "PYTHON=3.14"
+            echo "PYTHON=3.12"
             echo "CUDA=13.0"
             echo "CUDA_SHORT=130"
             echo "PYTORCH=2.11.0"
@@ -68,7 +68,7 @@ jobs:
       - name: Setup build environment
         uses: ./.github/actions/setup-build-env
         with:
-          python-version: "3.14"
+          python-version: "3.12"
           pytorch-version: "2.11.0"
           cuda-short: "130"
           platform: linux
@@ -103,7 +103,7 @@ jobs:
       - name: Upload wheel artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: flash-attn-linux-py314-cu130-torch2.11.0-nasferatu
+          name: flash-attn-linux-py312-cu130-torch2.11.0-nasferatu
           path: |
             dist/*.whl
             benchmark-info/*.txt
