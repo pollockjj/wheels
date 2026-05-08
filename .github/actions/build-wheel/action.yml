@@ -122,6 +122,7 @@ runs:
           export MAX_JOBS="$REQUESTED_MAX_JOBS"
         fi
         echo "MAX_JOBS=$MAX_JOBS for runner ${RUNNER_NAME:-$(hostname)}"
+        echo "TORCH_CUDA_ARCH_LIST=$TORCH_CUDA_ARCH_LIST"
         # Force CUDA build even without a GPU (torch.cuda.is_available() is False on CI)
         export FORCE_CUDA=1
         # Add CUDA stubs to library path for linking (libcuda.so)

@@ -82,7 +82,7 @@ jobs:
           source-repo: Dao-AILab/flash-attention
           source-tag: 3a7694c04748e3ba1cd954eb5dfdfd4b6646a234
           pre-build-script: ""
-          arch-list: "8.0 9.0"
+          arch-list: "12.0"
           cuda-version: "13.0"
           cuda-short: "130"
           pytorch-version: "2.11.0"
