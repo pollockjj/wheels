@@ -7,6 +7,13 @@ env:
   UV_HTTP_TIMEOUT: "600"
 
 on:
+  push:
+    branches:
+      - issue_100
+    paths:
+      - .github/workflows/build-exact-dev-machine-wheel.yml
+      - recipes/dev_machine_wheels.json
+      - scripts/dev_machine_wheel_recipe.py
   workflow_dispatch:
     inputs:
       recipe:
@@ -24,12 +31,12 @@ on:
           - prosoche-flash-attn-3
 
 concurrency:
-  group: exact-dev-machine-wheel-${{ inputs.recipe }}
+  group: exact-dev-machine-wheel-${{ inputs.recipe || 'interceptor-flash-attn' }}
   cancel-in-progress: false
 
 jobs:
   build-or-steal:
-    name: ${{ inputs.recipe }}
+    name: ${{ inputs.recipe || 'interceptor-flash-attn' }}
     runs-on: [self-hosted, Linux, X64, fa3-builder, nasferatu-fa3]
     permissions:
       contents: read
@@ -64,14 +71,14 @@ jobs:
       - name: Resolve exact recipe
         id: recipe
         shell: bash
-        run: python scripts/dev_machine_wheel_recipe.py emit --recipe "${{ inputs.recipe }}"
+        run: python scripts/dev_machine_wheel_recipe.py emit --recipe "${{ inputs.recipe || 'interceptor-flash-attn' }}"
 
       - name: Check origin and upstream
         id: obtain
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python scripts/dev_machine_wheel_recipe.py obtain --recipe "${{ inputs.recipe }}" --dist dist
+        run: python scripts/dev_machine_wheel_recipe.py obtain --recipe "${{ inputs.recipe || 'interceptor-flash-attn' }}" --dist dist
 
       - name: Setup CUDA
         if: steps.obtain.outputs.mode == 'build'
@@ -123,7 +130,7 @@ jobs:
       - name: Verify exact wheel
         if: steps.obtain.outputs.mode != 'origin_exists'
         shell: bash
-        run: python scripts/dev_machine_wheel_recipe.py verify-dist --recipe "${{ inputs.recipe }}" --dist dist
+        run: python scripts/dev_machine_wheel_recipe.py verify-dist --recipe "${{ inputs.recipe || 'interceptor-flash-attn' }}" --dist dist
 
       - name: Upload exact wheel artifact
         if: steps.obtain.outputs.mode != 'origin_exists'
@@ -133,7 +140,7 @@ jobs:
           path: dist/*.whl
 
   publish:
-    name: publish ${{ inputs.recipe }}
+    name: publish ${{ inputs.recipe || 'interceptor-flash-attn' }}
     needs: build-or-steal
     if: needs.build-or-steal.outputs.mode != 'origin_exists'
     runs-on: ubuntu-22.04
