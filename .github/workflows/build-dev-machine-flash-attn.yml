@@ -108,6 +108,11 @@ jobs:
           extra-deps: "psutil"
           github-cache: "false"
 
+      - name: Force exact PyTorch tuple
+        if: steps.check.outputs.mode == 'build'
+        shell: bash
+        run: uv pip install --system --force-reinstall torch==2.11.0 torchvision==0.26.0 torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cu128
+
       - name: Build wheel
         if: steps.check.outputs.mode == 'build'
         uses: ./.github/actions/build-wheel
@@ -223,6 +228,11 @@ jobs:
           platform: linux
           extra-deps: "psutil"
           github-cache: "false"
+
+      - name: Force exact PyTorch tuple
+        if: steps.check.outputs.mode == 'build'
+        shell: bash
+        run: uv pip install --system --force-reinstall torch==2.11.0 torchvision==0.26.0 torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cu130
 
       - name: Build wheel
         if: steps.check.outputs.mode == 'build'
@@ -340,6 +350,11 @@ jobs:
           extra-deps: "psutil"
           github-cache: "false"
 
+      - name: Force exact PyTorch tuple
+        if: steps.check.outputs.mode == 'build'
+        shell: bash
+        run: uv pip install --system --force-reinstall torch==2.11.0 torchvision==0.26.0 torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cu130
+
       - name: Build wheel
         if: steps.check.outputs.mode == 'build'
         uses: ./.github/actions/build-wheel
@@ -456,6 +471,11 @@ jobs:
           platform: linux
           extra-deps: "einops psutil"
           github-cache: "false"
+
+      - name: Force exact PyTorch tuple
+        if: steps.check.outputs.mode == 'build'
+        shell: bash
+        run: uv pip install --system --force-reinstall torch==2.11.0 torchvision==0.26.0 torchaudio==2.11.0 --index-url https://download.pytorch.org/whl/cu130
 
       - name: Build wheel
         if: steps.check.outputs.mode == 'build'
